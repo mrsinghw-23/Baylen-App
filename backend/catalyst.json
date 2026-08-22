@@ -1,0 +1,12 @@
+{
+  "functions": {
+    "targets": [
+      "baylen-api"
+    ],
+    "ignore": [],
+    "source": "functions"
+  },
+  "apig": {
+    "enabled": true
+  }
+}

@@ -1,0 +1,10 @@
+{
+  "deployment": {
+    "name": "baylen-api",
+    "stack": "node20",
+    "type": "advancedio"
+  },
+  "execution": {
+    "main": "index.js"
+  }
+}

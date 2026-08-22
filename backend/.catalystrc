@@ -1,0 +1,29 @@
+{
+  "defaults": {
+    "project": 1
+  },
+  "actives": {
+    "project": 1,
+    "env": 1
+  },
+  "projects": [
+    {
+      "idx": 1,
+      "id": "36851000000230006",
+      "name": "Baylen-App",
+      "domain": {
+        "id": "50045005846",
+        "name": "baylen-app-60069781151.development"
+      },
+      "timezone": "Asia/Kolkata",
+      "env": [
+        {
+          "idx": 1,
+          "id": "60069781151",
+          "name": "Development",
+          "type": 3
+        }
+      ]
+    }
+  ]
+}
