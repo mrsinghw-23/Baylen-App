@@ -6,6 +6,7 @@ const {
   listCommerceProducts,
 } = require("../lib/zoho-commerce");
 const {
+  booksConnectionStatus,
   booksConfig,
   isBooksConfigured,
   syncBooksItemsToCatalyst,
@@ -282,16 +283,23 @@ function catalogRoutes(app) {
   app.get("/v1/catalog/sync/zoho-books/status", async (req, res, next) => {
     try {
       const cfg = booksConfig();
+      const envConfigured = isBooksConfigured(cfg);
+      const connection = await booksConnectionStatus(req);
+      const ready = Boolean(envConfigured || connection.configured);
       sendOk(res, {
         service: "Zoho Books Product Sync",
-        is_configured: isBooksConfigured(cfg),
+        is_configured: ready,
+        connection_configured: connection.configured,
+        connection_name: connection.connection_name,
+        connection_error: connection.error,
+        env_configured: envConfigured,
         organization_id_configured: Boolean(cfg.organizationId),
         client_id_configured: Boolean(cfg.clientId),
         refresh_token_configured: Boolean(cfg.refreshToken),
         api_base: cfg.apiBase,
-        instructions: isBooksConfigured(cfg)
+        instructions: ready
           ? "Zoho Books is connected. You can trigger sync anytime via POST /v1/catalog/sync/zoho-books"
-          : "Configure ZOHO_BOOKS_ORGANIZATION_ID, ZOHO_BOOKS_CLIENT_ID, ZOHO_BOOKS_CLIENT_SECRET, and ZOHO_BOOKS_REFRESH_TOKEN in Catalyst Environment Variables to sync items.",
+          : "Create a Catalyst Connection named zoho_books or configure ZOHO_BOOKS_ORGANIZATION_ID, ZOHO_BOOKS_CLIENT_ID, ZOHO_BOOKS_CLIENT_SECRET, and ZOHO_BOOKS_REFRESH_TOKEN in Catalyst Environment Variables to sync items.",
       });
     } catch (error) {
       next(error);
@@ -301,7 +309,6 @@ function catalogRoutes(app) {
   // Zoho Books Manual Sync
   app.post("/v1/catalog/sync/zoho-books", async (req, res, next) => {
     try {
-      const cfg = booksConfig();
       // Allow syncing via Catalyst Connection or Environment Variables
       const result = await syncBooksItemsToCatalyst(req);
       sendOk(res, {

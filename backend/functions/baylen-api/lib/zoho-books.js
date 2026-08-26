@@ -82,24 +82,60 @@ async function getBooksAccessToken(config = booksConfig()) {
   return data.access_token;
 }
 
-async function fetchBooksItems(req, config = booksConfig()) {
-  let token = '';
+async function booksConnectionStatus(req) {
   try {
-    const creds = await req.catalystApp.connections().getConnectionCredentials('zoho_books');
+    const creds = await req.catalystApp
+      .connections()
+      .getConnectionCredentials("zoho_books");
     const headers = creds?.headers || {};
-    token = headers.Authorization || headers.authorization || headers.AUTHORIZATION || '';
-    if (token && !token.startsWith('Zoho-oauthtoken')) {
-      token = 'Zoho-oauthtoken ' + token.replace(/^Bearer\s+/i, '');
+    const authorization =
+      headers.Authorization || headers.authorization || headers.AUTHORIZATION || "";
+    const hasToken = Boolean(
+      String(authorization || "").trim() || creds?.parameters?.access_token
+    );
+    return {
+      configured: hasToken,
+      connection_name: "zoho_books",
+      error: "",
+    };
+  } catch (error) {
+    return {
+      configured: false,
+      connection_name: "zoho_books",
+      error: error.message || "Catalyst Connection check failed",
+    };
+  }
+}
+
+async function connectionAccessToken(req) {
+  try {
+    const creds = await req.catalystApp
+      .connections()
+      .getConnectionCredentials("zoho_books");
+    const headers = creds?.headers || {};
+    let token =
+      headers.Authorization || headers.authorization || headers.AUTHORIZATION || "";
+    if (token && !token.startsWith("Zoho-oauthtoken")) {
+      token = "Zoho-oauthtoken " + token.replace(/^Bearer\s+/i, "");
     }
     if (!token && creds?.parameters?.access_token) {
-      token = 'Zoho-oauthtoken ' + creds.parameters.access_token;
+      token = "Zoho-oauthtoken " + creds.parameters.access_token;
     }
+    return token;
   } catch (err) {
-    console.log('Connection credentials error:', err.message);
+    console.log("Zoho Books connection credentials error:", err.message);
+    return "";
+  }
+}
+
+async function fetchBooksItems(req, config = booksConfig()) {
+  let token = await connectionAccessToken(req);
+  if (!token && isBooksConfigured(config)) {
+    token = "Zoho-oauthtoken " + (await getBooksAccessToken(config));
   }
 
   if (!token) {
-    throw new Error('Zoho Books is not configured in environment and Catalyst Connection failed.');
+    throw new Error("Zoho Books is not configured in environment and Catalyst Connection failed.");
   }
 
   let page = 1;
@@ -235,6 +271,7 @@ async function syncBooksItemsToCatalyst(req) {
 module.exports = {
   booksConfig,
   isBooksConfigured,
+  booksConnectionStatus,
   exchangeCodeForTokens,
   getBooksAccessToken,
   fetchBooksItems,
