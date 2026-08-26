@@ -1,0 +1,24 @@
+{
+  "java.configuration.updateBuildConfiguration": "automatic",
+  "gradle.nestedProjects": false,
+  "java.project.resourceFilters": [
+    "node_modules",
+    ".dart_tool",
+    "build",
+    "linux/flutter/ephemeral",
+    "windows/flutter/ephemeral",
+    "macos/Flutter/ephemeral",
+    "ios/Flutter/ephemeral"
+  ],
+  "files.watcherExclude": {
+    "**/.git/objects/**": true,
+    "**/.git/subtree-cache/**": true,
+    "**/node_modules/*/**": true,
+    "**/.dart_tool/**": true,
+    "**/build/**": true,
+    "**/linux/flutter/ephemeral/**": true,
+    "**/windows/flutter/ephemeral/**": true,
+    "**/macos/Flutter/ephemeral/**": true,
+    "**/ios/Flutter/ephemeral/**": true
+  }
+}

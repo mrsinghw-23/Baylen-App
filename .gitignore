@@ -49,3 +49,10 @@ app.*.map.json
 
 # Catalyst backend
 backend/functions/**/node_modules/
+backend/appsail/**/node_modules/
+backend/client/
+backend/iac_export_inspect/
+backend/export_*.zip
+
+# Local/generated Android build state
+android/.kotlin/

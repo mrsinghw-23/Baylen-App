@@ -33,6 +33,23 @@ function asText(value, field, max) {
   return text.replace(/'/g, "");
 }
 
+function optionalText(value, field, max) {
+  const text = String(value ?? "").trim();
+  if (!text) {
+    return "";
+  }
+  if (text.length > max) {
+    const error = new Error(`${field} must be at most ${max} characters`);
+    error.status = 400;
+    throw error;
+  }
+  return text.replace(/'/g, "");
+}
+
+function sqlString(value) {
+  return "'" + String(value ?? "").replace(/'/g, "''") + "'";
+}
+
 function rowOf(result, tableName) {
   if (!Array.isArray(result) || result.length === 0) {
     return null;
@@ -68,6 +85,8 @@ module.exports = {
   asId,
   asQty,
   asText,
+  optionalText,
+  sqlString,
   rowOf,
   rowsOf,
   num,

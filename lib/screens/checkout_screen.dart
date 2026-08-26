@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 
 import '../auth/auth_service.dart';
+import '../models/account.dart';
 import '../models/cart.dart';
 import '../models/order.dart';
+import 'login_screen.dart';
 import 'orders_screen.dart';
 
 class CheckoutScreen extends StatefulWidget {
@@ -21,10 +23,21 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
   final _city = TextEditingController();
   final _state = TextEditingController();
   final _postal = TextEditingController();
+  List<Address> _addresses = [];
+  Address? _selectedAddress;
+  bool _loadingAddresses = true;
   bool _placing = false;
 
   @override
+  void initState() {
+    super.initState();
+    AuthService.instance.user.addListener(_onAuthChanged);
+    _loadAddresses();
+  }
+
+  @override
   void dispose() {
+    AuthService.instance.user.removeListener(_onAuthChanged);
     _name.dispose();
     _phone.dispose();
     _line1.dispose();
@@ -34,10 +47,55 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     super.dispose();
   }
 
+  void _onAuthChanged() {
+    if (AuthService.instance.isSignedIn) {
+      _loadAddresses();
+    }
+  }
+
+  Future<bool> _openLogin() async {
+    final signedIn = await Navigator.of(
+      context,
+    ).push<bool>(MaterialPageRoute<bool>(builder: (_) => const LoginScreen()));
+    return signedIn == true;
+  }
+
+  Future<void> _loadAddresses() async {
+    if (!AuthService.instance.isSignedIn) {
+      setState(() => _loadingAddresses = false);
+      return;
+    }
+    try {
+      final addresses = await AuthService.instance.api.addresses();
+      if (!mounted) return;
+      Address? selected;
+      for (final address in addresses) {
+        if (address.isDefault) {
+          selected = address;
+          break;
+        }
+      }
+      selected ??= addresses.isNotEmpty ? addresses.first : null;
+      setState(() {
+        _addresses = addresses;
+        _selectedAddress = selected;
+        _loadingAddresses = false;
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _loadingAddresses = false);
+    }
+  }
+
   Future<void> _placeOrder() async {
+    if (!AuthService.instance.isSignedIn) {
+      final signedIn = await _openLogin();
+      if (!signedIn) return;
+    }
     setState(() => _placing = true);
     try {
       final order = await AuthService.instance.api.checkout(
+        addressId: _selectedAddress?.id,
         shippingName: _name.text.trim(),
         shippingPhone: _phone.text.trim(),
         shippingLine1: _line1.text.trim(),
@@ -47,70 +105,192 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
       );
       if (!mounted) return;
       Navigator.of(context).pushAndRemoveUntil(
-        MaterialPageRoute<void>(builder: (_) => OrderPlacedScreen(order: order)),
+        MaterialPageRoute<void>(
+          builder: (_) => OrderPlacedScreen(order: order),
+        ),
         (route) => route.isFirst,
       );
     } catch (error) {
       if (!mounted) return;
       setState(() => _placing = false);
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(error.toString())));
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text(error.toString())));
     }
   }
 
   @override
   Widget build(BuildContext context) {
     final cart = widget.cart;
-    return Scaffold(
-      appBar: AppBar(title: const Text('Checkout')),
-      body: ListView(
-        padding: const EdgeInsets.all(16),
-        children: [
-          Text('Order summary', style: Theme.of(context).textTheme.titleMedium),
-          const SizedBox(height: 8),
-          ...cart.items.map(
-            (item) => ListTile(
-              contentPadding: EdgeInsets.zero,
-              title: Text(item.name),
-              subtitle: Text('Qty ${item.quantity}'),
-              trailing: Text(item.lineLabel),
-            ),
-          ),
-          const Divider(),
-          Row(
-            children: [
-              const Text('Total', style: TextStyle(fontWeight: FontWeight.w700)),
-              const Spacer(),
-              Text(
-                cart.subtotalLabel,
-                style: TextStyle(
-                  fontWeight: FontWeight.w700,
-                  color: Theme.of(context).colorScheme.primary,
-                  fontSize: 18,
-                ),
+    return ValueListenableBuilder(
+      valueListenable: AuthService.instance.user,
+      builder: (context, user, _) => Scaffold(
+        appBar: AppBar(title: const Text('Checkout')),
+        body: user == null
+            ? _SignedOutCheckout(onSignIn: _openLogin)
+            : ListView(
+                padding: const EdgeInsets.all(16),
+                children: [
+                  Text(
+                    'Order summary',
+                    style: Theme.of(context).textTheme.titleMedium,
+                  ),
+                  const SizedBox(height: 8),
+                  ...cart.items.map(
+                    (item) => ListTile(
+                      contentPadding: EdgeInsets.zero,
+                      title: Text(item.name),
+                      subtitle: Text('Qty ${item.quantity}'),
+                      trailing: Text(item.lineLabel),
+                    ),
+                  ),
+                  const Divider(),
+                  Row(
+                    children: [
+                      const Text('Subtotal'),
+                      const Spacer(),
+                      Text(cart.subtotalLabel),
+                    ],
+                  ),
+                  if (cart.discountAmount > 0) ...[
+                    const SizedBox(height: 6),
+                    Row(
+                      children: [
+                        Text('Coupon ${cart.coupon?.code ?? ''}'),
+                        const Spacer(),
+                        Text(
+                          cart.discountLabel,
+                          style: const TextStyle(
+                            color: Color(0xFF35D07F),
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                  const SizedBox(height: 6),
+                  Row(
+                    children: [
+                      const Text(
+                        'Total',
+                        style: TextStyle(fontWeight: FontWeight.w700),
+                      ),
+                      const Spacer(),
+                      Text(
+                        cart.totalLabel,
+                        style: TextStyle(
+                          fontWeight: FontWeight.w700,
+                          color: Theme.of(context).colorScheme.primary,
+                          fontSize: 18,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  const Text(
+                    'Payment will be added later. This places the order as pending payment.',
+                  ),
+                  const SizedBox(height: 20),
+                  Text(
+                    'Delivery details',
+                    style: Theme.of(context).textTheme.titleMedium,
+                  ),
+                  const SizedBox(height: 8),
+                  if (_loadingAddresses)
+                    const LinearProgressIndicator()
+                  else if (_addresses.isNotEmpty) ...[
+                    DropdownButtonFormField<String>(
+                      initialValue: _selectedAddress?.id,
+                      decoration: const InputDecoration(
+                        labelText: 'Saved address',
+                      ),
+                      items: _addresses
+                          .map(
+                            (address) => DropdownMenuItem(
+                              value: address.id,
+                              child: Text('${address.label} - ${address.city}'),
+                            ),
+                          )
+                          .toList(),
+                      onChanged: (id) {
+                        setState(() {
+                          _selectedAddress = _addresses.firstWhere(
+                            (address) => address.id == id,
+                          );
+                        });
+                      },
+                    ),
+                    if (_selectedAddress != null) ...[
+                      const SizedBox(height: 8),
+                      Text(_selectedAddress!.summary),
+                    ],
+                    const SizedBox(height: 12),
+                    Text(
+                      'Or edit delivery details below',
+                      style: Theme.of(context).textTheme.bodySmall,
+                    ),
+                  ],
+                  TextField(
+                    controller: _name,
+                    decoration: const InputDecoration(labelText: 'Name'),
+                  ),
+                  TextField(
+                    controller: _phone,
+                    decoration: const InputDecoration(labelText: 'Phone'),
+                    keyboardType: TextInputType.phone,
+                  ),
+                  TextField(
+                    controller: _line1,
+                    decoration: const InputDecoration(labelText: 'Address'),
+                  ),
+                  TextField(
+                    controller: _city,
+                    decoration: const InputDecoration(labelText: 'City'),
+                  ),
+                  TextField(
+                    controller: _state,
+                    decoration: const InputDecoration(labelText: 'State'),
+                  ),
+                  TextField(
+                    controller: _postal,
+                    decoration: const InputDecoration(labelText: 'PIN code'),
+                  ),
+                  const SizedBox(height: 24),
+                  FilledButton(
+                    onPressed: _placing ? null : _placeOrder,
+                    child: Text(_placing ? 'Placing order...' : 'Place order'),
+                  ),
+                ],
               ),
-            ],
-          ),
-          const SizedBox(height: 8),
-          const Text('Payment will be added later. This places the order as pending payment.'),
-          const SizedBox(height: 20),
-          Text('Delivery details', style: Theme.of(context).textTheme.titleMedium),
-          const SizedBox(height: 8),
-          TextField(controller: _name, decoration: const InputDecoration(labelText: 'Name')),
-          TextField(
-            controller: _phone,
-            decoration: const InputDecoration(labelText: 'Phone'),
-            keyboardType: TextInputType.phone,
-          ),
-          TextField(controller: _line1, decoration: const InputDecoration(labelText: 'Address')),
-          TextField(controller: _city, decoration: const InputDecoration(labelText: 'City')),
-          TextField(controller: _state, decoration: const InputDecoration(labelText: 'State')),
-          TextField(controller: _postal, decoration: const InputDecoration(labelText: 'PIN code')),
-          const SizedBox(height: 24),
-          FilledButton(
-            onPressed: _placing ? null : _placeOrder,
-            child: Text(_placing ? 'Placing order…' : 'Place order'),
-          ),
-        ],
+      ),
+    );
+  }
+}
+
+class _SignedOutCheckout extends StatelessWidget {
+  const _SignedOutCheckout({required this.onSignIn});
+
+  final Future<bool> Function() onSignIn;
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(Icons.lock_outline, size: 48),
+            const SizedBox(height: 12),
+            const Text('Sign in to continue checkout'),
+            const SizedBox(height: 16),
+            FilledButton(
+              onPressed: () {
+                onSignIn();
+              },
+              child: const Text('Sign in'),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -139,7 +319,7 @@ class OrderPlacedScreen extends StatelessWidget {
             ),
             const SizedBox(height: 8),
             Text(
-              '${order.totalLabel} · ${order.status} · payment ${order.paymentStatus}',
+              '${order.totalLabel} / ${order.status} / payment ${order.paymentStatus}',
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 24),
@@ -152,7 +332,8 @@ class OrderPlacedScreen extends StatelessWidget {
               child: const Text('View orders'),
             ),
             TextButton(
-              onPressed: () => Navigator.of(context).popUntil((route) => route.isFirst),
+              onPressed: () =>
+                  Navigator.of(context).popUntil((route) => route.isFirst),
               child: const Text('Back to home'),
             ),
           ],

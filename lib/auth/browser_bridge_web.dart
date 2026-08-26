@@ -2,7 +2,7 @@ import 'package:web/web.dart' as web;
 
 const _key = 'baylen_session';
 
-String? readSession() => web.window.localStorage.getItem(_key);
+Future<String?> readSession() async => web.window.localStorage.getItem(_key);
 
 Future<void> writeSession(String? token) async {
   if (token == null || token.isEmpty) {

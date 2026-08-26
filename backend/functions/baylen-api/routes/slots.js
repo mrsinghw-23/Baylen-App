@@ -1,5 +1,20 @@
 const { asId, asText, rowOf, rowsOf, sendOk } = require("../lib/http");
 
+function mapSlot(row) {
+  const text = String(row.slot_date || "").trim();
+  const iso = text.match(/^(\d{4}-\d{2}-\d{2})/);
+  return {
+    id: String(row.ROWID),
+    outlet_id: row.outlet_id ? String(row.outlet_id) : "",
+    staff_id: row.staff_id ? String(row.staff_id) : "",
+    service_id: row.service_id ? String(row.service_id) : "",
+    slot_date: iso ? iso[1] : text.slice(0, 10),
+    start_time: row.start_time,
+    end_time: row.end_time,
+    status: row.status,
+  };
+}
+
 function slotRoutes(app) {
   app.get("/v1/slots", async (req, res, next) => {
     try {
@@ -7,6 +22,9 @@ function slotRoutes(app) {
       const slotDate = asText(req.query.slot_date, "slot_date", 10);
       const staffId = req.query.staff_id
         ? asId(req.query.staff_id, "staff_id")
+        : null;
+      const serviceId = req.query.service_id
+        ? asId(req.query.service_id, "service_id")
         : null;
 
       const zcql = req.catalystApp.zcql();
@@ -19,9 +37,12 @@ function slotRoutes(app) {
       if (staffId) {
         query += " AND staff_id = " + staffId;
       }
+      if (serviceId) {
+        query += " AND (service_id = " + serviceId + " OR service_id IS NULL)";
+      }
 
       const rows = rowsOf(await zcql.executeZCQLQuery(query), "Appointment_Slots");
-      sendOk(res, { slots: rows });
+      sendOk(res, { slots: rows.map(mapSlot) });
     } catch (error) {
       next(error);
     }

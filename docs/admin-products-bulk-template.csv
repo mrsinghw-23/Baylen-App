@@ -1,0 +1,3 @@
+id,name,slug,sku,brand_id,category_id,short_description,description,mrp,selling_price,currency,tax_percent,thumbnail_url,has_variants,is_featured,status
+,Baylen Keratin Smooth Shampoo,baylen-keratin-smooth-shampoo,BAY-HC-001,,,"Keratin care shampoo","Smooth hair care shampoo for salon-grade shine",799,599,INR,18,https://example.com/products/shampoo.jpg,false,true,ACTIVE
+,Baylen Vitamin C Serum,baylen-vitamin-c-serum,BAY-SC-001,,,"Daily glow serum","Brightening serum for hydrated skin",1299,899,INR,18,https://example.com/products/serum.jpg,false,true,ACTIVE

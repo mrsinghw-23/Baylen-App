@@ -54,11 +54,30 @@ function isAllowedOrigin(origin) {
 }
 
 function publicUser(data) {
+  const rawEmail = String(data.email || "");
+  const email = rawEmail.includes(".local") ? "" : rawEmail;
+  const rawFirst = String(data.first_name || "");
+  const firstName = (rawFirst === "Pending" || rawFirst === "Baylen") ? "" : rawFirst;
+  const rawLast = String(data.last_name || "");
+  const lastName = (rawLast === "Registration" || rawLast === "Customer") ? "" : rawLast;
+
+  const isComplete = Boolean(
+    data.is_profile_complete === true ||
+    (firstName.trim().length >= 2 &&
+     lastName.trim().length >= 1 &&
+     email.trim().length > 3 &&
+     /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))
+  );
+
   return {
     user_id: String(data.user_id || ""),
-    email: data.email || "",
-    first_name: data.first_name || "",
-    last_name: data.last_name || "",
+    email: email,
+    first_name: firstName,
+    last_name: lastName,
+    mobile: data.mobile || data.phone || "",
+    gender: data.gender || "",
+    date_of_birth: data.date_of_birth || "",
+    is_profile_complete: isComplete,
   };
 }
 
@@ -95,6 +114,7 @@ function requireUser(req) {
     email: user.email || "",
     first_name: user.first_name || "",
     last_name: user.last_name || "",
+    mobile: user.mobile || user.phone || "",
   };
 }
 

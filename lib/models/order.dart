@@ -39,6 +39,8 @@ class ShopOrder {
     required this.shippingName,
     required this.shippingLine1,
     required this.shippingCity,
+    required this.canCancel,
+    required this.canReturn,
     required this.items,
   });
 
@@ -52,6 +54,8 @@ class ShopOrder {
   final String shippingName;
   final String shippingLine1;
   final String shippingCity;
+  final bool canCancel;
+  final bool canReturn;
   final List<OrderItem> items;
 
   String get totalLabel {
@@ -72,9 +76,40 @@ class ShopOrder {
       shippingName: json['shipping_name']?.toString() ?? '',
       shippingLine1: json['shipping_line1']?.toString() ?? '',
       shippingCity: json['shipping_city']?.toString() ?? '',
+      canCancel: json['can_cancel'] == true,
+      canReturn: json['can_return'] == true,
       items: rawItems is List
-          ? rawItems.whereType<Map<String, dynamic>>().map(OrderItem.fromJson).toList()
+          ? rawItems
+                .whereType<Map<String, dynamic>>()
+                .map(OrderItem.fromJson)
+                .toList()
           : const [],
+    );
+  }
+}
+
+class OrderTimelineEntry {
+  const OrderTimelineEntry({
+    required this.id,
+    required this.status,
+    required this.note,
+    required this.actorType,
+    required this.happenedAt,
+  });
+
+  final String id;
+  final String status;
+  final String note;
+  final String actorType;
+  final String happenedAt;
+
+  factory OrderTimelineEntry.fromJson(Map<String, dynamic> json) {
+    return OrderTimelineEntry(
+      id: json['id']?.toString() ?? '',
+      status: json['status']?.toString() ?? '',
+      note: json['note']?.toString() ?? '',
+      actorType: json['actor_type']?.toString() ?? '',
+      happenedAt: json['happened_at']?.toString() ?? '',
     );
   }
 }

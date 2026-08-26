@@ -1,0 +1,112 @@
+{
+  "project": {
+    "name": "Baylen-App",
+    "id": "36851000000230006",
+    "environment": "Development",
+    "function": "baylen-api"
+  },
+  "environment_variables": {
+    "required": [
+      "AUTH_SESSION_SECRET",
+      "ADMIN_API_KEY",
+      "PROVIDER_API_KEY",
+      "FILESTORE_MEDIA_FOLDER_ID"
+    ],
+    "optional": [
+      "RAZORPAY_KEY_ID",
+      "RAZORPAY_KEY_SECRET",
+      "CASHFREE_CLIENT_ID",
+      "CASHFREE_CLIENT_SECRET"
+    ]
+  },
+  "phase_4_notifications": {
+    "tables": [
+      "Devices",
+      "Notifications",
+      "Notification_Preferences"
+    ],
+    "routes": [
+      "GET /v1/notifications",
+      "POST /v1/notifications/read",
+      "GET /v1/notifications/preferences",
+      "POST /v1/notifications/preferences",
+      "POST /v1/devices/register"
+    ]
+  },
+  "auth_sessions": {
+    "routes": [
+      "POST /v1/auth/session/refresh",
+      "POST /v1/auth/session/revoke"
+    ]
+  },
+  "phase_5_fsm": {
+    "tables": [
+      "Service_Jobs",
+      "Job_Dispatch",
+      "Job_Timeline",
+      "Live_Locations",
+      "Providers",
+      "Provider_Services",
+      "Service_Areas"
+    ],
+    "routes": [
+      "POST /v1/jobs/dispatch",
+      "POST /v1/jobs/accept",
+      "GET /v1/provider/jobs",
+      "GET /v1/jobs",
+      "GET /v1/jobs/tracking",
+      "POST /v1/jobs/status",
+      "POST /v1/jobs/location",
+      "POST /v1/jobs/proof"
+    ]
+  },
+  "phase_6_admin": {
+    "routes": [
+      "GET /v1/admin/summary",
+      "GET /v1/admin/schema/check",
+      "GET /v1/admin/inventory",
+      "GET /v1/admin/inventory/movements",
+      "GET /v1/admin/audit-logs",
+      "GET /v1/admin/orders",
+      "POST /v1/admin/order/status",
+      "GET /v1/admin/bookings",
+      "POST /v1/admin/booking/status",
+      "GET /v1/admin/products",
+      "POST /v1/admin/product/upsert",
+      "POST /v1/admin/products/bulk",
+      "POST /v1/admin/product/status",
+      "POST /v1/admin/inventory/update",
+      "GET /v1/admin/services",
+      "POST /v1/admin/service/upsert",
+      "POST /v1/admin/services/bulk",
+      "POST /v1/admin/service/status",
+      "GET /v1/admin/outlets",
+      "POST /v1/admin/outlet/upsert",
+      "POST /v1/admin/outlet/status",
+      "POST /v1/admin/files/upload",
+      "GET /v1/admin/files",
+      "POST /v1/admin/files/map",
+      "GET /v1/admin/media-targets",
+      "GET /v1/files/download"
+    ],
+    "required_header": "X-Baylen-Admin-Key"
+  },
+  "phase_7_payments": {
+    "tables": [
+      "Payments",
+      "Refunds"
+    ],
+    "routes": [
+      "GET /v1/payments/providers",
+      "POST /v1/payments/intent",
+      "POST /v1/payments/verify",
+      "GET /v1/payments",
+      "POST /v1/payments/refund-request"
+    ]
+  },
+  "security": {
+    "provider_write_header": "X-Baylen-Provider-Key",
+    "admin_write_header": "X-Baylen-Admin-Key",
+    "customer_session_header": "X-Baylen-Token"
+  }
+}

@@ -6,7 +6,17 @@
     "ignore": [],
     "source": "functions"
   },
+  "client": {
+    "source": "client"
+  },
   "apig": {
-    "enabled": true
-  }
+    "enabled": true,
+    "rules": "catalyst-user-rules.json"
+  },
+  "appsail": [
+    {
+      "source": "appsail\\baylen-auth",
+      "name": "baylen-auth"
+    }
+  ]
 }

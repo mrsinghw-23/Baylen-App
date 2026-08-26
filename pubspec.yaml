@@ -1,5 +1,5 @@
 name: baylen_app
-description: "Baylen Super App — shop, salon, and home service on Catalyst."
+description: "Baylen Super App - shop, salon, and home service on Catalyst."
 # The following line prevents the package from being accidentally published to
 # pub.dev using `flutter pub publish`. This is preferred for private packages.
 publish_to: 'none' # Remove this line if you wish to publish to pub.dev
@@ -34,8 +34,13 @@ dependencies:
   # The following adds the Cupertino Icons font to your application.
   # Use with the CupertinoIcons class for iOS style icons.
   cupertino_icons: ^1.0.8
+  file_picker: ^9.2.3
   http: ^1.5.0
+  shared_preferences: ^2.5.3
   web: ^1.1.1
+  geolocator: ^14.0.2
+  geocoding: ^5.0.0
+  url_launcher: ^6.3.2
 
 dev_dependencies:
   flutter_test:
@@ -47,6 +52,15 @@ dev_dependencies:
   # package. See that file for information about deactivating specific lint
   # rules and activating additional ones.
   flutter_lints: ^6.0.0
+  flutter_launcher_icons: ^0.14.4
+
+flutter_launcher_icons:
+  android: true
+  ios: true
+  image_path: "assets/icon/logo.png"
+  remove_alpha_ios: true
+  adaptive_icon_background: "#000000"
+  adaptive_icon_foreground: "assets/icon/logo.png"
 
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec
@@ -58,6 +72,14 @@ flutter:
   # included with your application, so that you can use the icons in
   # the material Icons class.
   uses-material-design: true
+
+  assets:
+    - assets/branding/
+    - assets/icon/
+    - assets/splash/
+    - assets/gallery/
+    - assets/gallery/2026/August/
+    - assets/gallery/2026/September/
 
   # To add assets to your application, add an assets section, like this:
   # assets:

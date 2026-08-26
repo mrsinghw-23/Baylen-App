@@ -1,0 +1,3 @@
+id,name,slug,description,category_id,image_url,duration_minutes,gender,mrp,selling_price,currency,status,is_active
+,Hair Spa,hair-spa,"Deep nourishment hair spa",,,60,UNISEX,1499,1199,INR,ACTIVE,true
+,Global Hair Color,global-hair-color,"Full hair color service",,,120,UNISEX,2999,2499,INR,ACTIVE,true

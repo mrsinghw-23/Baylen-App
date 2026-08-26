@@ -7,7 +7,7 @@ import '../screens/salon_screen.dart';
 import '../screens/shop_screen.dart';
 
 class MainShell extends StatefulWidget {
-  const MainShell({super.key});
+  const MainShell({super.key, this.initialIndex = homeIndex});
 
   static const homeIndex = 0;
   static const shopIndex = 1;
@@ -15,12 +15,28 @@ class MainShell extends StatefulWidget {
   static const homeServiceIndex = 3;
   static const profileIndex = 4;
 
+  final int initialIndex;
+
   @override
   State<MainShell> createState() => _MainShellState();
 }
 
 class _MainShellState extends State<MainShell> {
-  int _index = MainShell.homeIndex;
+  late int _index;
+
+  @override
+  void initState() {
+    super.initState();
+    _index = widget.initialIndex;
+  }
+
+  @override
+  void didUpdateWidget(covariant MainShell oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.initialIndex != widget.initialIndex) {
+      _index = widget.initialIndex;
+    }
+  }
 
   void _openTab(int index) {
     setState(() => _index = index);
@@ -60,7 +76,7 @@ class _MainShellState extends State<MainShell> {
           NavigationDestination(
             icon: Icon(Icons.home_repair_service_outlined),
             selectedIcon: Icon(Icons.home_repair_service),
-            label: 'Service',
+            label: 'Home Service',
           ),
           NavigationDestination(
             icon: Icon(Icons.person_outline),
