@@ -48,9 +48,105 @@
     "target_id": "36851000000291764"
   },
   {
+    "name": "salon-packages",
+    "source_endpoint": "/v1/salon/packages",
+    "target_endpoint": "/server/baylen-api/v1/salon/packages",
+    "target": "advancedio",
+    "method": "ANY",
+    "throttling": {
+      "overall": {},
+      "ip": {}
+    },
+    "target_id": "36851000000291764"
+  },
+  {
+    "name": "salon-locations",
+    "source_endpoint": "/v1/salon/locations",
+    "target_endpoint": "/server/baylen-api/v1/salon/locations",
+    "target": "advancedio",
+    "method": "ANY",
+    "throttling": {
+      "overall": {},
+      "ip": {}
+    },
+    "target_id": "36851000000291764"
+  },
+  {
     "name": "checkout",
     "source_endpoint": "/v1/checkout",
     "target_endpoint": "/server/baylen-api/v1/checkout",
+    "target": "advancedio",
+    "method": "ANY",
+    "throttling": {
+      "overall": {},
+      "ip": {}
+    },
+    "target_id": "36851000000291764"
+  },
+  {
+    "name": "checkout-check-pincode",
+    "source_endpoint": "/v1/checkout/check-pincode",
+    "target_endpoint": "/server/baylen-api/v1/checkout/check-pincode",
+    "target": "advancedio",
+    "method": "ANY",
+    "throttling": {
+      "overall": {},
+      "ip": {}
+    },
+    "target_id": "36851000000291764"
+  },
+  {
+    "name": "checkout-validate",
+    "source_endpoint": "/v1/checkout/validate",
+    "target_endpoint": "/server/baylen-api/v1/checkout/validate",
+    "target": "advancedio",
+    "method": "ANY",
+    "throttling": {
+      "overall": {},
+      "ip": {}
+    },
+    "target_id": "36851000000291764"
+  },
+  {
+    "name": "checkout-create-payment",
+    "source_endpoint": "/v1/checkout/create-payment",
+    "target_endpoint": "/server/baylen-api/v1/checkout/create-payment",
+    "target": "advancedio",
+    "method": "ANY",
+    "throttling": {
+      "overall": {},
+      "ip": {}
+    },
+    "target_id": "36851000000291764"
+  },
+  {
+    "name": "checkout-verify-payment",
+    "source_endpoint": "/v1/checkout/verify-payment",
+    "target_endpoint": "/server/baylen-api/v1/checkout/verify-payment",
+    "target": "advancedio",
+    "method": "ANY",
+    "throttling": {
+      "overall": {},
+      "ip": {}
+    },
+    "target_id": "36851000000291764"
+  },
+  {
+    "name": "checkout-place-cod-order",
+    "source_endpoint": "/v1/checkout/place-cod-order",
+    "target_endpoint": "/server/baylen-api/v1/checkout/place-cod-order",
+    "target": "advancedio",
+    "method": "ANY",
+    "throttling": {
+      "overall": {},
+      "ip": {}
+    },
+    "target_id": "36851000000291764"
+  },
+  {
+    "name": "orders-cancel-by-id",
+    "source_endpoint": "/v1/orders/(.*)/cancel",
+    "target_endpoint": "/server/baylen-api/v1/orders/$1/cancel",
     "target": "advancedio",
     "method": "ANY",
     "throttling": {
@@ -204,6 +300,18 @@
     "target_id": "36851000000291764"
   },
   {
+    "name": "catalog-brand",
+    "source_endpoint": "/v1/catalog/brand",
+    "target_endpoint": "/server/baylen-api/v1/catalog/brand",
+    "target": "advancedio",
+    "method": "ANY",
+    "throttling": {
+      "overall": {},
+      "ip": {}
+    },
+    "target_id": "36851000000291764"
+  },
+  {
     "name": "auth-me",
     "source_endpoint": "/v1/auth/me",
     "target_endpoint": "/server/baylen-api/v1/auth/me",
@@ -291,6 +399,42 @@
     "name": "catalog-product",
     "source_endpoint": "/v1/catalog/product",
     "target_endpoint": "/server/baylen-api/v1/catalog/product",
+    "target": "advancedio",
+    "method": "ANY",
+    "throttling": {
+      "overall": {},
+      "ip": {}
+    },
+    "target_id": "36851000000291764"
+  },
+  {
+    "name": "catalog-mega-menu",
+    "source_endpoint": "/v1/catalog/mega-menu",
+    "target_endpoint": "/server/baylen-api/v1/catalog/mega-menu",
+    "target": "advancedio",
+    "method": "ANY",
+    "throttling": {
+      "overall": {},
+      "ip": {}
+    },
+    "target_id": "36851000000291764"
+  },
+  {
+    "name": "catalog-shop-home",
+    "source_endpoint": "/v1/catalog/shop-home",
+    "target_endpoint": "/server/baylen-api/v1/catalog/shop-home",
+    "target": "advancedio",
+    "method": "ANY",
+    "throttling": {
+      "overall": {},
+      "ip": {}
+    },
+    "target_id": "36851000000291764"
+  },
+  {
+    "name": "catalog-search",
+    "source_endpoint": "/v1/catalog/search",
+    "target_endpoint": "/server/baylen-api/v1/catalog/search",
     "target": "advancedio",
     "method": "ANY",
     "throttling": {
@@ -408,9 +552,45 @@
     "target_id": "36851000000291764"
   },
   {
+    "name": "outlets-nearby",
+    "source_endpoint": "/v1/outlets/nearby",
+    "target_endpoint": "/server/baylen-api/v1/outlets/nearby",
+    "target": "advancedio",
+    "method": "ANY",
+    "throttling": {
+      "overall": {},
+      "ip": {}
+    },
+    "target_id": "36851000000291764"
+  },
+  {
     "name": "profile-get",
     "source_endpoint": "/v1/profile",
     "target_endpoint": "/server/baylen-api/v1/profile",
+    "target": "advancedio",
+    "method": "ANY",
+    "throttling": {
+      "overall": {},
+      "ip": {}
+    },
+    "target_id": "36851000000291764"
+  },
+  {
+    "name": "account-recover",
+    "source_endpoint": "/v1/account/recover",
+    "target_endpoint": "/server/baylen-api/v1/account/recover",
+    "target": "advancedio",
+    "method": "ANY",
+    "throttling": {
+      "overall": {},
+      "ip": {}
+    },
+    "target_id": "36851000000291764"
+  },
+  {
+    "name": "me-bootstrap",
+    "source_endpoint": "/v1/me/bootstrap",
+    "target_endpoint": "/server/baylen-api/v1/me/bootstrap",
     "target": "advancedio",
     "method": "ANY",
     "throttling": {
@@ -1059,6 +1239,450 @@
     "name": "webhooks-zoho-books",
     "source_endpoint": "/v1/webhooks/zoho-books",
     "target_endpoint": "/server/baylen-api/v1/webhooks/zoho-books",
+    "target": "advancedio",
+    "method": "ANY",
+    "throttling": {
+      "overall": {},
+      "ip": {}
+    },
+    "target_id": "36851000000291764"
+  },
+  {
+    "name": "catalog-navigation",
+    "source_endpoint": "/v1/catalog/navigation",
+    "target_endpoint": "/server/baylen-api/v1/catalog/navigation",
+    "target": "advancedio",
+    "method": "ANY",
+    "throttling": {
+      "overall": {},
+      "ip": {}
+    },
+    "target_id": "36851000000291764"
+  },
+  {
+    "name": "catalog-search-suggestions",
+    "source_endpoint": "/v1/catalog/search/suggestions",
+    "target_endpoint": "/server/baylen-api/v1/catalog/search/suggestions",
+    "target": "advancedio",
+    "method": "ANY",
+    "throttling": {
+      "overall": {},
+      "ip": {}
+    },
+    "target_id": "36851000000291764"
+  },
+  {
+    "name": "catalog-search-trending",
+    "source_endpoint": "/v1/catalog/search/trending",
+    "target_endpoint": "/server/baylen-api/v1/catalog/search/trending",
+    "target": "advancedio",
+    "method": "ANY",
+    "throttling": {
+      "overall": {},
+      "ip": {}
+    },
+    "target_id": "36851000000291764"
+  },
+  {
+    "name": "catalog-concerns",
+    "source_endpoint": "/v1/catalog/concerns",
+    "target_endpoint": "/server/baylen-api/v1/catalog/concerns",
+    "target": "advancedio",
+    "method": "ANY",
+    "throttling": {
+      "overall": {},
+      "ip": {}
+    },
+    "target_id": "36851000000291764"
+  },
+  {
+    "name": "catalog-offers",
+    "source_endpoint": "/v1/catalog/offers",
+    "target_endpoint": "/server/baylen-api/v1/catalog/offers",
+    "target": "advancedio",
+    "method": "ANY",
+    "throttling": {
+      "overall": {},
+      "ip": {}
+    },
+    "target_id": "36851000000291764"
+  },
+  {
+    "name": "admin-taxonomy-seed",
+    "source_endpoint": "/v1/admin/taxonomy/seed",
+    "target_endpoint": "/server/baylen-api/v1/admin/taxonomy/seed",
+    "target": "advancedio",
+    "method": "ANY",
+    "throttling": {
+      "overall": {},
+      "ip": {}
+    },
+    "target_id": "36851000000291764"
+  },
+  {
+    "name": "admin-taxonomy",
+    "source_endpoint": "/v1/admin/taxonomy",
+    "target_endpoint": "/server/baylen-api/v1/admin/taxonomy",
+    "target": "advancedio",
+    "method": "ANY",
+    "throttling": {
+      "overall": {},
+      "ip": {}
+    },
+    "target_id": "36851000000291764"
+  },
+  {
+    "name": "admin-categories",
+    "source_endpoint": "/v1/admin/categories",
+    "target_endpoint": "/server/baylen-api/v1/admin/categories",
+    "target": "advancedio",
+    "method": "ANY",
+    "throttling": {
+      "overall": {},
+      "ip": {}
+    },
+    "target_id": "36851000000291764"
+  },
+  {
+    "name": "admin-categories-update",
+    "source_endpoint": "/v1/admin/categories/update",
+    "target_endpoint": "/server/baylen-api/v1/admin/categories/update",
+    "target": "advancedio",
+    "method": "ANY",
+    "throttling": {
+      "overall": {},
+      "ip": {}
+    },
+    "target_id": "36851000000291764"
+  },
+  {
+    "name": "admin-categories-disable",
+    "source_endpoint": "/v1/admin/categories/disable",
+    "target_endpoint": "/server/baylen-api/v1/admin/categories/disable",
+    "target": "advancedio",
+    "method": "ANY",
+    "throttling": {
+      "overall": {},
+      "ip": {}
+    },
+    "target_id": "36851000000291764"
+  },
+  {
+    "name": "admin-search-synonyms",
+    "source_endpoint": "/v1/admin/search-synonyms",
+    "target_endpoint": "/server/baylen-api/v1/admin/search-synonyms",
+    "target": "advancedio",
+    "method": "ANY",
+    "throttling": {
+      "overall": {},
+      "ip": {}
+    },
+    "target_id": "36851000000291764"
+  },
+  {
+    "name": "admin-trending-searches",
+    "source_endpoint": "/v1/admin/trending-searches",
+    "target_endpoint": "/server/baylen-api/v1/admin/trending-searches",
+    "target": "advancedio",
+    "method": "ANY",
+    "throttling": {
+      "overall": {},
+      "ip": {}
+    },
+    "target_id": "36851000000291764"
+  },
+  {
+    "name": "admin-imports-template",
+    "source_endpoint": "/v1/admin/imports/template",
+    "target_endpoint": "/server/baylen-api/v1/admin/imports/template",
+    "target": "advancedio",
+    "method": "ANY",
+    "throttling": {
+      "overall": {},
+      "ip": {}
+    },
+    "target_id": "36851000000291764"
+  },
+  {
+    "name": "admin-imports-preview",
+    "source_endpoint": "/v1/admin/imports/preview",
+    "target_endpoint": "/server/baylen-api/v1/admin/imports/preview",
+    "target": "advancedio",
+    "method": "ANY",
+    "throttling": {
+      "overall": {},
+      "ip": {}
+    },
+    "target_id": "36851000000291764"
+  },
+  {
+    "name": "admin-imports",
+    "source_endpoint": "/v1/admin/imports",
+    "target_endpoint": "/server/baylen-api/v1/admin/imports",
+    "target": "advancedio",
+    "method": "ANY",
+    "throttling": {
+      "overall": {},
+      "ip": {}
+    },
+    "target_id": "36851000000291764"
+  },
+  {
+    "name": "admin-imports-job",
+    "source_endpoint": "/v1/admin/imports/(.*)",
+    "target_endpoint": "/server/baylen-api/v1/admin/imports/$1",
+    "target": "advancedio",
+    "method": "ANY",
+    "throttling": {
+      "overall": {},
+      "ip": {}
+    },
+    "target_id": "36851000000291764"
+  },
+  {
+    "name": "admin-exports-products",
+    "source_endpoint": "/v1/admin/exports/products",
+    "target_endpoint": "/server/baylen-api/v1/admin/exports/products",
+    "target": "advancedio",
+    "method": "ANY",
+    "throttling": {
+      "overall": {},
+      "ip": {}
+    },
+    "target_id": "36851000000291764"
+  },
+  {
+    "name": "admin-catalog-backfill-categories",
+    "source_endpoint": "/v1/admin/catalog/backfill-categories",
+    "target_endpoint": "/server/baylen-api/v1/admin/catalog/backfill-categories",
+    "target": "advancedio",
+    "method": "ANY",
+    "throttling": {
+      "overall": {},
+      "ip": {}
+    },
+    "target_id": "36851000000291764"
+  },
+  {
+    "name": "admin-search-rebuild",
+    "source_endpoint": "/v1/admin/search/rebuild",
+    "target_endpoint": "/server/baylen-api/v1/admin/search/rebuild",
+    "target": "advancedio",
+    "method": "ANY",
+    "throttling": {
+      "overall": {},
+      "ip": {}
+    },
+    "target_id": "36851000000291764"
+  },
+  {
+    "name": "admin-inventory-adjust",
+    "source_endpoint": "/v1/admin/inventory/adjust",
+    "target_endpoint": "/server/baylen-api/v1/admin/inventory/adjust",
+    "target": "advancedio",
+    "method": "ANY",
+    "throttling": {
+      "overall": {},
+      "ip": {}
+    },
+    "target_id": "36851000000291764"
+  },
+  {
+    "name": "admin-inventory-transfer",
+    "source_endpoint": "/v1/admin/inventory/transfer",
+    "target_endpoint": "/server/baylen-api/v1/admin/inventory/transfer",
+    "target": "advancedio",
+    "method": "ANY",
+    "throttling": {
+      "overall": {},
+      "ip": {}
+    },
+    "target_id": "36851000000291764"
+  },
+  {
+    "name": "inventory-sku",
+    "source_endpoint": "/v1/inventory/(.*)",
+    "target_endpoint": "/server/baylen-api/v1/inventory/$1",
+    "target": "advancedio",
+    "method": "ANY",
+    "throttling": {
+      "overall": {},
+      "ip": {}
+    },
+    "target_id": "36851000000291764"
+  },
+  {
+    "name": "fulfillment-check",
+    "source_endpoint": "/v1/fulfillment/check",
+    "target_endpoint": "/server/baylen-api/v1/fulfillment/check",
+    "target": "advancedio",
+    "method": "ANY",
+    "throttling": {
+      "overall": {},
+      "ip": {}
+    },
+    "target_id": "36851000000291764"
+  },
+  {
+    "name": "fulfillment-product-availability",
+    "source_endpoint": "/v1/fulfillment/product-availability",
+    "target_endpoint": "/server/baylen-api/v1/fulfillment/product-availability",
+    "target": "advancedio",
+    "method": "ANY",
+    "throttling": {
+      "overall": {},
+      "ip": {}
+    },
+    "target_id": "36851000000291764"
+  },
+  {
+    "name": "picker-orders",
+    "source_endpoint": "/v1/picker/orders",
+    "target_endpoint": "/server/baylen-api/v1/picker/orders",
+    "target": "advancedio",
+    "method": "ANY",
+    "throttling": {
+      "overall": {},
+      "ip": {}
+    },
+    "target_id": "36851000000291764"
+  },
+  {
+    "name": "picker-order-actions",
+    "source_endpoint": "/v1/picker/orders/(.*)",
+    "target_endpoint": "/server/baylen-api/v1/picker/orders/$1",
+    "target": "advancedio",
+    "method": "ANY",
+    "throttling": {
+      "overall": {},
+      "ip": {}
+    },
+    "target_id": "36851000000291764"
+  },
+  {
+    "name": "rider-orders",
+    "source_endpoint": "/v1/rider/orders",
+    "target_endpoint": "/server/baylen-api/v1/rider/orders",
+    "target": "advancedio",
+    "method": "ANY",
+    "throttling": {
+      "overall": {},
+      "ip": {}
+    },
+    "target_id": "36851000000291764"
+  },
+  {
+    "name": "rider-order-actions",
+    "source_endpoint": "/v1/rider/orders/(.*)",
+    "target_endpoint": "/server/baylen-api/v1/rider/orders/$1",
+    "target": "advancedio",
+    "method": "ANY",
+    "throttling": {
+      "overall": {},
+      "ip": {}
+    },
+    "target_id": "36851000000291764"
+  },
+  {
+    "name": "rider-location",
+    "source_endpoint": "/v1/rider/location",
+    "target_endpoint": "/server/baylen-api/v1/rider/location",
+    "target": "advancedio",
+    "method": "ANY",
+    "throttling": {
+      "overall": {},
+      "ip": {}
+    },
+    "target_id": "36851000000291764"
+  },
+  {
+    "name": "order-tracking",
+    "source_endpoint": "/v1/orders/(.*)/tracking",
+    "target_endpoint": "/server/baylen-api/v1/orders/$1/tracking",
+    "target": "advancedio",
+    "method": "ANY",
+    "throttling": {
+      "overall": {},
+      "ip": {}
+    },
+    "target_id": "36851000000291764"
+  },
+  {
+    "name": "admin-assign-rider",
+    "source_endpoint": "/v1/admin/orders/(.*)/assign-rider",
+    "target_endpoint": "/server/baylen-api/v1/admin/orders/$1/assign-rider",
+    "target": "advancedio",
+    "method": "ANY",
+    "throttling": {
+      "overall": {},
+      "ip": {}
+    },
+    "target_id": "36851000000291764"
+  },
+  {
+    "name": "admin-salon-imports-template",
+    "source_endpoint": "/v1/admin/salon/imports/template",
+    "target_endpoint": "/server/baylen-api/v1/admin/salon/imports/template",
+    "target": "advancedio",
+    "method": "ANY",
+    "throttling": {
+      "overall": {},
+      "ip": {}
+    },
+    "target_id": "36851000000291764"
+  },
+  {
+    "name": "admin-salon-imports-preview",
+    "source_endpoint": "/v1/admin/salon/imports/preview",
+    "target_endpoint": "/server/baylen-api/v1/admin/salon/imports/preview",
+    "target": "advancedio",
+    "method": "ANY",
+    "throttling": {
+      "overall": {},
+      "ip": {}
+    },
+    "target_id": "36851000000291764"
+  },
+  {
+    "name": "admin-salon-imports",
+    "source_endpoint": "/v1/admin/salon/imports",
+    "target_endpoint": "/server/baylen-api/v1/admin/salon/imports",
+    "target": "advancedio",
+    "method": "ANY",
+    "throttling": {
+      "overall": {},
+      "ip": {}
+    },
+    "target_id": "36851000000291764"
+  },
+  {
+    "name": "admin-salon-imports-all-seeds",
+    "source_endpoint": "/v1/admin/salon/imports/all-seeds",
+    "target_endpoint": "/server/baylen-api/v1/admin/salon/imports/all-seeds",
+    "target": "advancedio",
+    "method": "ANY",
+    "throttling": {
+      "overall": {},
+      "ip": {}
+    },
+    "target_id": "36851000000291764"
+  },
+  {
+    "name": "admin-salon-cleanup",
+    "source_endpoint": "/v1/admin/salon/cleanup",
+    "target_endpoint": "/server/baylen-api/v1/admin/salon/cleanup",
+    "target": "advancedio",
+    "method": "ANY",
+    "throttling": {
+      "overall": {},
+      "ip": {}
+    },
+    "target_id": "36851000000291764"
+  },
+  {
+    "name": "admin-salon-booking-test-whatsapp",
+    "source_endpoint": "/v1/admin/salon/booking/test-whatsapp",
+    "target_endpoint": "/server/baylen-api/v1/admin/salon/booking/test-whatsapp",
     "target": "advancedio",
     "method": "ANY",
     "throttling": {

@@ -176,7 +176,11 @@ class _SalonCard extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Center(child: _SalonLogo(imageUrl: data.imageUrl)),
+            const Center(
+              child: _SalonLogo(
+                imageUrl: 'assets/icon/logo.png',
+              ),
+            ),
             const SizedBox(height: 12),
             Text(
               name,

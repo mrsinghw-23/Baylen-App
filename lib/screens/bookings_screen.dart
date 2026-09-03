@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../auth/auth_service.dart';
 import '../auth/auth_user.dart';
 import '../models/salon.dart';
+import '../widgets/offline_account_banner.dart';
 import '../widgets/reviews_panel.dart';
 import 'login_screen.dart';
 
@@ -35,12 +36,19 @@ class _BookingsScreenState extends State<BookingsScreen> {
       });
       return;
     }
+    final cached = AuthService.instance.bootstrap.value?.appointments ?? [];
     setState(() {
-      _loading = true;
+      if (cached.isNotEmpty) {
+        _appointments = cached;
+        _loading = false;
+      } else {
+        _loading = true;
+      }
       _error = null;
     });
     try {
       final appointments = await AuthService.instance.api.appointments();
+      AuthService.instance.noteLiveDataReceived();
       if (!mounted) return;
       setState(() {
         _appointments = appointments;
@@ -50,7 +58,9 @@ class _BookingsScreenState extends State<BookingsScreen> {
       if (!mounted) return;
       setState(() {
         _loading = false;
-        _error = error.toString();
+        if (_appointments.isEmpty) {
+          _error = error.toString();
+        }
       });
     }
   }
@@ -62,7 +72,11 @@ class _BookingsScreenState extends State<BookingsScreen> {
       builder: (context, user, _) {
         return Scaffold(
           appBar: AppBar(title: const Text('Bookings')),
-          body: user == null
+          body: Column(
+            children: [
+              const OfflineAccountBanner(),
+              Expanded(
+                child: user == null
               ? Center(
                   child: FilledButton(
                     onPressed: () {
@@ -110,6 +124,9 @@ class _BookingsScreenState extends State<BookingsScreen> {
                     },
                   ),
                 ),
+              ),
+            ],
+          ),
         );
       },
     );
@@ -139,7 +156,14 @@ class _BookingCard extends StatelessWidget {
       child: ExpansionTile(
         title: Text(appointment.serviceLabel),
         subtitle: Text(
-          '${appointment.appointmentNumber}\n${appointment.appointmentDate}  ${appointment.startTime} - ${appointment.endTime}\n${appointment.status} / ${appointment.paymentStatus}',
+          [
+            if (appointment.salonName.isNotEmpty) appointment.salonName,
+            appointment.appointmentNumber,
+            '${appointment.appointmentDate}  ${appointment.startTime} - ${appointment.endTime}',
+            '${appointment.status} / ${appointment.paymentStatus}',
+            if (appointment.notificationStatus.toUpperCase() == 'SENT')
+              'WhatsApp confirmation sent',
+          ].where((line) => line.isNotEmpty).join('\n'),
         ),
         trailing: Text(appointment.totalLabel),
         childrenPadding: const EdgeInsets.fromLTRB(12, 0, 12, 12),

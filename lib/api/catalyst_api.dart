@@ -6,18 +6,27 @@ import '../auth/guest_session.dart';
 import '../auth/auth_user.dart';
 import '../config/app_config.dart';
 import '../models/account.dart';
+import '../models/account_bootstrap.dart';
 import '../models/cart.dart';
 import '../models/catalog.dart';
+import '../models/fulfillment.dart';
 import '../models/launch_content.dart';
 import '../models/notification_item.dart';
 import '../models/order.dart';
+import '../models/order_tracking.dart';
 import '../models/review.dart';
 import '../models/salon.dart';
 import '../models/service_job.dart';
 
 class ApiException implements Exception {
-  ApiException(this.message);
+  ApiException(this.message, {this.statusCode});
   final String message;
+  final int? statusCode;
+
+  bool get isUnauthorized =>
+      statusCode == 401 ||
+      message.toLowerCase().contains('sign in required') ||
+      message.toLowerCase().contains('not signed in');
 
   @override
   String toString() => message;
@@ -49,13 +58,28 @@ class OtpRequestResult {
   }
 }
 
+class BookAppointmentResult {
+  const BookAppointmentResult({
+    required this.appointment,
+    this.notificationStatus = '',
+    this.notificationReason = '',
+  });
+
+  final SalonAppointment appointment;
+  final String notificationStatus;
+  final String notificationReason;
+
+  bool get whatsappSent => notificationStatus.toUpperCase() == 'SENT';
+}
+
 class CatalystApi {
   CatalystApi({http.Client? client, this._tokenProvider})
     : _client = client ?? http.Client();
 
   final http.Client _client;
   final String? Function()? _tokenProvider;
-  static const _timeout = Duration(seconds: 12);
+  static const _timeout = Duration(seconds: 20);
+  static const _authTimeout = Duration(seconds: 35);
 
   Map<String, String> _headers({
     bool includeAuth = true,
@@ -106,8 +130,9 @@ class CatalystApi {
 
   Future<Map<String, dynamic>> _post(
     String path,
-    Map<String, dynamic> body,
-  ) async {
+    Map<String, dynamic> body, {
+    Duration? timeout,
+  }) async {
     final uri = Uri.parse('${AppConfig.apiBaseUrl}$path');
     final http.Response response;
     try {
@@ -117,7 +142,7 @@ class CatalystApi {
             headers: {..._headers(), 'Content-Type': 'application/json'},
             body: jsonEncode(body),
           )
-          .timeout(_timeout);
+          .timeout(timeout ?? _timeout);
     } catch (_) {
       throw ApiException('Live data is temporarily unavailable. Please retry.');
     }
@@ -135,7 +160,21 @@ class CatalystApi {
       throw ApiException('Unexpected response');
     }
     if (response.statusCode >= 400 || decoded['ok'] != true) {
-      throw ApiException(decoded['error']?.toString() ?? 'Request failed');
+      final message = decoded['error']?.toString() ?? 'Request failed';
+      final details = decoded['details'];
+      if (details is String && details.isNotEmpty) {
+        throw ApiException(
+          '$message $details',
+          statusCode: response.statusCode,
+        );
+      }
+      if (details is Map && details['gateway'] != null) {
+        throw ApiException(
+          '$message ${details['gateway']}',
+          statusCode: response.statusCode,
+        );
+      }
+      throw ApiException(message, statusCode: response.statusCode);
     }
     final data = decoded['data'];
     if (data is Map<String, dynamic>) {
@@ -179,7 +218,9 @@ class CatalystApi {
   }
 
   Future<OtpRequestResult> requestOtp({required String mobile}) async {
-    final data = await _post('/v1/auth/otp/request', {'mobile': mobile});
+    final data = await _post('/v1/auth/otp/request', {
+      'mobile': mobile,
+    }, timeout: _authTimeout);
     return OtpRequestResult.fromJson(data);
   }
 
@@ -196,7 +237,7 @@ class CatalystApi {
         'challenge_id': challengeId,
       if (guestSessionId != null && guestSessionId.isNotEmpty)
         'guest_session_id': guestSessionId,
-    });
+    }, timeout: _authTimeout);
     final token = data['token']?.toString() ?? '';
     final user = data['user'];
     if (token.isEmpty || user is! Map<String, dynamic>) {
@@ -219,7 +260,7 @@ class CatalystApi {
       if (gender != null && gender.isNotEmpty) 'gender': gender,
       if (dateOfBirth != null && dateOfBirth.isNotEmpty)
         'date_of_birth': dateOfBirth,
-    });
+    }, timeout: _authTimeout);
     final token = data['token']?.toString() ?? '';
     final user = data['user'];
     if (token.isEmpty || user is! Map<String, dynamic>) {
@@ -244,6 +285,11 @@ class CatalystApi {
       throw ApiException('Profile was not returned');
     }
     return UserProfile.fromJson(profile);
+  }
+
+  Future<AccountBootstrap> recoverAccount() async {
+    final data = await _get('/v1/account/recover');
+    return AccountBootstrap.fromJson(data);
   }
 
   Future<UserProfile> updateProfile({
@@ -292,9 +338,12 @@ class CatalystApi {
     String? fullName,
     String? phone,
     String? line2,
+    String? landmark,
     bool isDefault = false,
+    double? latitude,
+    double? longitude,
   }) async {
-    final data = await _post('/v1/addresses', {
+    final body = <String, dynamic>{
       'label': label,
       'line1': line1,
       'city': city,
@@ -304,7 +353,64 @@ class CatalystApi {
       if (fullName != null && fullName.isNotEmpty) 'full_name': fullName,
       if (phone != null && phone.isNotEmpty) 'phone': phone,
       if (line2 != null && line2.isNotEmpty) 'line2': line2,
-    });
+      if (landmark != null && landmark.isNotEmpty) 'landmark': landmark,
+    };
+    if (latitude != null) body['latitude'] = latitude;
+    if (longitude != null) body['longitude'] = longitude;
+    final data = await _post('/v1/addresses', body);
+    final items = data['addresses'];
+    if (items is! List) {
+      return [];
+    }
+    return items
+        .whereType<Map<String, dynamic>>()
+        .map(Address.fromJson)
+        .toList();
+  }
+
+  Future<List<Address>> updateAddress({
+    required String addressId,
+    required String label,
+    required String line1,
+    required String city,
+    required String state,
+    required String postalCode,
+    String? fullName,
+    String? phone,
+    String? line2,
+    String? landmark,
+    bool isDefault = false,
+    double? latitude,
+    double? longitude,
+  }) async {
+    final body = <String, dynamic>{
+      'address_id': addressId,
+      'label': label,
+      'line1': line1,
+      'city': city,
+      'state': state,
+      'postal_code': postalCode,
+      'is_default': isDefault,
+      if (fullName != null && fullName.isNotEmpty) 'full_name': fullName,
+      if (phone != null && phone.isNotEmpty) 'phone': phone,
+      if (line2 != null && line2.isNotEmpty) 'line2': line2,
+      if (landmark != null && landmark.isNotEmpty) 'landmark': landmark,
+    };
+    if (latitude != null) body['latitude'] = latitude;
+    if (longitude != null) body['longitude'] = longitude;
+    final data = await _post('/v1/address/update', body);
+    final items = data['addresses'];
+    if (items is! List) {
+      return [];
+    }
+    return items
+        .whereType<Map<String, dynamic>>()
+        .map(Address.fromJson)
+        .toList();
+  }
+
+  Future<List<Address>> setDefaultAddress(String addressId) async {
+    final data = await _post('/v1/address/default', {'address_id': addressId});
     final items = data['addresses'];
     if (items is! List) {
       return [];
@@ -317,6 +423,188 @@ class CatalystApi {
 
   Future<void> removeAddress(String addressId) async {
     await _post('/v1/address/remove', {'address_id': addressId});
+  }
+
+  Future<Map<String, dynamic>> lookupPincode(String pincode) {
+    return _get('/v1/location/pincode', {'pincode': pincode}, false);
+  }
+
+  Future<Map<String, dynamic>> checkServiceablePincode(String pincode) {
+    return _post('/v1/checkout/check-pincode', {'pincode': pincode});
+  }
+
+  Future<Map<String, dynamic>> validateCheckout({
+    String? pincode,
+    String? shippingPostalCode,
+  }) {
+    return _post('/v1/checkout/validate', {
+      if (pincode != null && pincode.isNotEmpty) 'pincode': pincode,
+      if (shippingPostalCode != null && shippingPostalCode.isNotEmpty)
+        'shipping_postal_code': shippingPostalCode,
+    });
+  }
+
+  Map<String, dynamic> _checkoutPayload({
+    String? shippingName,
+    String? shippingPhone,
+    String? shippingLine1,
+    String? shippingCity,
+    String? shippingState,
+    String? shippingPostalCode,
+    String? addressId,
+    String? fulfillmentMode,
+    double? latitude,
+    double? longitude,
+    String? paymentMethod,
+    String? idempotencyKey,
+  }) {
+    final body = <String, dynamic>{
+      if (addressId != null && addressId.isNotEmpty) 'address_id': addressId,
+      if (shippingName != null && shippingName.isNotEmpty)
+        'shipping_name': shippingName,
+      if (shippingPhone != null && shippingPhone.isNotEmpty)
+        'shipping_phone': shippingPhone,
+      if (shippingLine1 != null && shippingLine1.isNotEmpty)
+        'shipping_line1': shippingLine1,
+      if (shippingCity != null && shippingCity.isNotEmpty)
+        'shipping_city': shippingCity,
+      if (shippingState != null && shippingState.isNotEmpty)
+        'shipping_state': shippingState,
+      if (shippingPostalCode != null && shippingPostalCode.isNotEmpty)
+        'shipping_postal_code': shippingPostalCode,
+      if (fulfillmentMode != null && fulfillmentMode.isNotEmpty)
+        'fulfillment_mode': fulfillmentMode,
+      if (paymentMethod != null && paymentMethod.isNotEmpty)
+        'payment_method': paymentMethod,
+      if (idempotencyKey != null && idempotencyKey.isNotEmpty)
+        'idempotency_key': idempotencyKey,
+    };
+    if (latitude != null) body['latitude'] = latitude;
+    if (longitude != null) body['longitude'] = longitude;
+    return body;
+  }
+
+  Future<ShopOrder> checkout({
+    String? shippingName,
+    String? shippingPhone,
+    String? shippingLine1,
+    String? shippingCity,
+    String? shippingState,
+    String? shippingPostalCode,
+    String? addressId,
+    String? fulfillmentMode,
+    double? latitude,
+    double? longitude,
+    String? paymentMethod,
+    String? idempotencyKey,
+  }) async {
+    return _orderFrom(
+      await _post(
+        '/v1/checkout',
+        _checkoutPayload(
+          shippingName: shippingName,
+          shippingPhone: shippingPhone,
+          shippingLine1: shippingLine1,
+          shippingCity: shippingCity,
+          shippingState: shippingState,
+          shippingPostalCode: shippingPostalCode,
+          addressId: addressId,
+          fulfillmentMode: fulfillmentMode,
+          latitude: latitude,
+          longitude: longitude,
+          paymentMethod: paymentMethod,
+          idempotencyKey: idempotencyKey,
+        ),
+      ),
+    );
+  }
+
+  Future<ShopOrder> placeCodOrder({
+    String? shippingName,
+    String? shippingPhone,
+    String? shippingLine1,
+    String? shippingCity,
+    String? shippingState,
+    String? shippingPostalCode,
+    String? addressId,
+    String? fulfillmentMode,
+    double? latitude,
+    double? longitude,
+    String? idempotencyKey,
+  }) async {
+    return _orderFrom(
+      await _post(
+        '/v1/checkout/place-cod-order',
+        _checkoutPayload(
+          shippingName: shippingName,
+          shippingPhone: shippingPhone,
+          shippingLine1: shippingLine1,
+          shippingCity: shippingCity,
+          shippingState: shippingState,
+          shippingPostalCode: shippingPostalCode,
+          addressId: addressId,
+          fulfillmentMode: fulfillmentMode,
+          latitude: latitude,
+          longitude: longitude,
+          paymentMethod: 'COD',
+          idempotencyKey: idempotencyKey,
+        ),
+      ),
+    );
+  }
+
+  Future<Map<String, dynamic>> createCheckoutPayment({
+    String? shippingName,
+    String? shippingPhone,
+    String? shippingLine1,
+    String? shippingCity,
+    String? shippingState,
+    String? shippingPostalCode,
+    String? addressId,
+    String? fulfillmentMode,
+    double? latitude,
+    double? longitude,
+    String paymentMethod = 'UPI',
+    String? idempotencyKey,
+  }) {
+    return _post(
+      '/v1/checkout/create-payment',
+      _checkoutPayload(
+        shippingName: shippingName,
+        shippingPhone: shippingPhone,
+        shippingLine1: shippingLine1,
+        shippingCity: shippingCity,
+        shippingState: shippingState,
+        shippingPostalCode: shippingPostalCode,
+        addressId: addressId,
+        fulfillmentMode: fulfillmentMode,
+        latitude: latitude,
+        longitude: longitude,
+        paymentMethod: paymentMethod,
+        idempotencyKey: idempotencyKey,
+      ),
+    );
+  }
+
+  Future<PaymentRecord> verifyCheckoutPayment({
+    required String paymentId,
+    required String status,
+    String? providerPaymentId,
+    String? providerSignature,
+  }) async {
+    final data = await _post('/v1/checkout/verify-payment', {
+      'payment_id': paymentId,
+      'status': status,
+      if (providerPaymentId != null && providerPaymentId.isNotEmpty)
+        'provider_payment_id': providerPaymentId,
+      if (providerSignature != null && providerSignature.isNotEmpty)
+        'provider_signature': providerSignature,
+    });
+    final payment = data['payment'];
+    if (payment is! Map<String, dynamic>) {
+      throw ApiException('Payment was not returned');
+    }
+    return PaymentRecord.fromJson(payment);
   }
 
   Future<void> registerDevice({
@@ -351,6 +639,64 @@ class CatalystApi {
         .toList();
   }
 
+  Future<List<CatalogCategoryNode>> megaMenu() async {
+    final data = await _get('/v1/catalog/mega-menu', null, false);
+    final items = data['menu'];
+    if (items is! List) {
+      return [];
+    }
+    return items
+        .whereType<Map<String, dynamic>>()
+        .map(CatalogCategoryNode.fromJson)
+        .toList();
+  }
+
+  Future<List<ShopNavMenu>> shopNavigation() async {
+    final data = await _get('/v1/catalog/navigation', null, false);
+    final items = data['menus'];
+    if (items is! List) {
+      return [];
+    }
+    return items
+        .whereType<Map<String, dynamic>>()
+        .map(ShopNavMenu.fromJson)
+        .toList();
+  }
+
+  Future<List<String>> trendingSearches() async {
+    final data = await _get('/v1/catalog/search/trending', null, false);
+    final items = data['trending'];
+    if (items is! List) {
+      return [];
+    }
+    return items
+        .map((item) {
+          if (item is Map<String, dynamic>) {
+            return item['query']?.toString() ?? '';
+          }
+          return item.toString();
+        })
+        .where((item) => item.isNotEmpty)
+        .toList();
+  }
+
+  Future<ShopHome> shopHome() async {
+    final data = await _get('/v1/catalog/shop-home', null, false);
+    return ShopHome.fromJson(data);
+  }
+
+  Future<List<CatalogProduct>> shopSearch(String query) async {
+    final data = await _get('/v1/catalog/search', {'q': query}, false);
+    final items = data['products'];
+    if (items is! List) {
+      return [];
+    }
+    return items
+        .whereType<Map<String, dynamic>>()
+        .map(CatalogProduct.fromJson)
+        .toList();
+  }
+
   Future<List<CatalogBrand>> brands() async {
     final data = await _get('/v1/catalog/brands', null, false);
     final items = data['brands'];
@@ -363,13 +709,20 @@ class CatalystApi {
         .toList();
   }
 
+  Future<CatalogBrandPage> brandPage(String slug) async {
+    final data = await _get('/v1/catalog/brand', {'slug': slug}, false);
+    return CatalogBrandPage.fromJson(data);
+  }
+
   Future<List<CatalogProduct>> products({
     String? categoryId,
     String? brandId,
     String? search,
     String? sort,
+    int page = 1,
+    int limit = 24,
   }) async {
-    final query = <String, String>{};
+    final query = <String, String>{'page': '$page', 'limit': '$limit'};
     if (categoryId != null && categoryId.isNotEmpty) {
       query['category_id'] = categoryId;
     }
@@ -393,21 +746,111 @@ class CatalystApi {
         .toList();
   }
 
+  Future<Map<String, dynamic>> productsPage({
+    String? categoryId,
+    String? brandId,
+    String? search,
+    String? sort,
+    int page = 1,
+    int limit = 24,
+    double? minPrice,
+    double? maxPrice,
+    int? minDiscount,
+    double? minRating,
+    bool? inStock,
+    String? gender,
+    String? ageGroup,
+  }) async {
+    final query = <String, String>{'page': '$page', 'limit': '$limit'};
+    if (categoryId != null && categoryId.isNotEmpty) {
+      query['category_id'] = categoryId;
+    }
+    if (brandId != null && brandId.isNotEmpty) {
+      query['brand_id'] = brandId;
+    }
+    if (search != null && search.isNotEmpty) {
+      query['search'] = search;
+    }
+    if (sort != null && sort.isNotEmpty) {
+      query['sort'] = sort;
+    }
+    if (minPrice != null && minPrice > 0) {
+      query['min_price'] = minPrice.toString();
+    }
+    if (maxPrice != null && maxPrice > 0) {
+      query['max_price'] = maxPrice.toString();
+    }
+    if (minDiscount != null && minDiscount > 0) {
+      query['min_discount'] = '$minDiscount';
+    }
+    if (minRating != null && minRating > 0) {
+      query['min_rating'] = minRating.toString();
+    }
+    if (inStock == true) {
+      query['in_stock'] = 'true';
+    }
+    if (gender != null && gender.isNotEmpty) {
+      query['gender'] = gender;
+    }
+    if (ageGroup != null && ageGroup.isNotEmpty) {
+      query['age_group'] = ageGroup;
+    }
+    return _get('/v1/catalog/products', query, false);
+  }
+
   Future<CatalogProductDetail> productDetail(String id) async {
     final data = await _get('/v1/catalog/product', {'id': id}, false);
     return CatalogProductDetail.fromJson(data);
   }
 
-  Cart _cartFrom(Map<String, dynamic> data) {
-    final cart = data['cart'];
-    if (cart is Map<String, dynamic>) {
-      return Cart.fromJson(cart);
+  Future<ProductFulfillmentAvailability> productFulfillmentAvailability({
+    required String productId,
+    String? variantId,
+    int quantity = 1,
+    double? latitude,
+    double? longitude,
+  }) async {
+    final query = <String, String>{
+      'product_id': productId,
+      'quantity': '$quantity',
+    };
+    if (variantId != null && variantId.isNotEmpty) {
+      query['variant_id'] = variantId;
     }
-    return Cart.empty();
+    if (latitude != null) {
+      query['latitude'] = '$latitude';
+    }
+    if (longitude != null) {
+      query['longitude'] = '$longitude';
+    }
+    final data = await _get(
+      '/v1/fulfillment/product-availability',
+      query,
+      false,
+    );
+    return ProductFulfillmentAvailability.fromJson(data);
+  }
+
+  Future<CartFulfillmentResult> checkFulfillment({
+    double? latitude,
+    double? longitude,
+    bool useCart = true,
+    List<Map<String, dynamic>>? items,
+  }) async {
+    final body = <String, dynamic>{'use_cart': useCart};
+    if (latitude != null) body['latitude'] = latitude;
+    if (longitude != null) body['longitude'] = longitude;
+    if (items != null) body['items'] = items;
+    final data = await _post('/v1/fulfillment/check', body);
+    return CartFulfillmentResult.fromJson(data);
+  }
+
+  Cart _cartFrom(Map<String, dynamic> data) {
+    return Cart.fromPayload(data);
   }
 
   Future<Cart> getCart() async {
-    return _cartFrom(await _get('/v1/cart'));
+    return _cartFrom(await _get('/v1/cart', null, true, true));
   }
 
   Future<Cart> addToCart({
@@ -460,8 +903,11 @@ class CatalystApi {
         .toList();
   }
 
-  Future<bool> toggleWishlist(String productId) async {
-    final data = await _post('/v1/wishlist/toggle', {'product_id': productId});
+  Future<bool> toggleWishlist(String productId, {String? variantId}) async {
+    final data = await _post('/v1/wishlist/toggle', {
+      'product_id': productId,
+      if (variantId != null && variantId.isNotEmpty) 'variant_id': variantId,
+    });
     return data['wished'] == true;
   }
 
@@ -471,34 +917,6 @@ class CatalystApi {
       return ShopOrder.fromJson(order);
     }
     throw ApiException('Order was not returned');
-  }
-
-  Future<ShopOrder> checkout({
-    String? shippingName,
-    String? shippingPhone,
-    String? shippingLine1,
-    String? shippingCity,
-    String? shippingState,
-    String? shippingPostalCode,
-    String? addressId,
-  }) async {
-    return _orderFrom(
-      await _post('/v1/checkout', {
-        if (addressId != null && addressId.isNotEmpty) 'address_id': addressId,
-        if (shippingName != null && shippingName.isNotEmpty)
-          'shipping_name': shippingName,
-        if (shippingPhone != null && shippingPhone.isNotEmpty)
-          'shipping_phone': shippingPhone,
-        if (shippingLine1 != null && shippingLine1.isNotEmpty)
-          'shipping_line1': shippingLine1,
-        if (shippingCity != null && shippingCity.isNotEmpty)
-          'shipping_city': shippingCity,
-        if (shippingState != null && shippingState.isNotEmpty)
-          'shipping_state': shippingState,
-        if (shippingPostalCode != null && shippingPostalCode.isNotEmpty)
-          'shipping_postal_code': shippingPostalCode,
-      }),
-    );
   }
 
   Future<List<ShopOrder>> orders() async {
@@ -514,7 +932,11 @@ class CatalystApi {
   }
 
   Future<ShopOrder> order(String id) async {
-    return _orderFrom(await _get('/v1/orders', {'id': id}));
+    try {
+      return _orderFrom(await _get('/v1/orders/$id'));
+    } catch (_) {
+      return _orderFrom(await _get('/v1/orders', {'id': id}));
+    }
   }
 
   Future<List<OrderTimelineEntry>> orderTimeline(String id) async {
@@ -527,6 +949,12 @@ class CatalystApi {
         .whereType<Map<String, dynamic>>()
         .map(OrderTimelineEntry.fromJson)
         .toList();
+  }
+
+  /// Live QC tracking (picker → rider → delivered). Requires customer session.
+  Future<OrderTracking> orderTracking(String id) async {
+    final data = await _get('/v1/orders/$id/tracking');
+    return OrderTracking.fromJson(data);
   }
 
   Future<ShopOrder> cancelOrder({
@@ -694,8 +1122,28 @@ class CatalystApi {
     return prefs.map((key, value) => MapEntry(key, value == true));
   }
 
-  Future<List<SalonOutlet>> salonOutlets() async {
-    final data = await _get('/v1/salon/outlets', null, false);
+  Future<List<SalonOutlet>> salonOutlets({
+    String? city,
+    String? pincode,
+    double? lat,
+    double? lng,
+    String? id,
+    String? queryText,
+  }) async {
+    final query = <String, String>{};
+    if (id != null && id.isNotEmpty) query['id'] = id;
+    if (city != null && city.isNotEmpty) query['city'] = city;
+    if (pincode != null && pincode.isNotEmpty) query['pincode'] = pincode;
+    if (lat != null) query['lat'] = lat.toString();
+    if (lng != null) query['lng'] = lng.toString();
+    if (queryText != null && queryText.isNotEmpty) query['q'] = queryText;
+    final data = await _get('/v1/salon/outlets', query, false);
+    if (id != null && id.isNotEmpty) {
+      final outlet = data['outlet'];
+      if (outlet is Map<String, dynamic>) {
+        return [SalonOutlet.fromJson(outlet)];
+      }
+    }
     final items = data['outlets'];
     if (items is! List) {
       return [];
@@ -706,11 +1154,54 @@ class CatalystApi {
         .toList();
   }
 
-  Future<List<SalonService>> salonServices({String? categoryId}) async {
+  Future<List<SalonLocation>> salonLocations() async {
+    final data = await _get('/v1/salon/locations', null, false);
+    final items = data['locations'];
+    if (items is! List) return [];
+    return items
+        .whereType<Map<String, dynamic>>()
+        .map(SalonLocation.fromJson)
+        .where((item) => item.city.isNotEmpty)
+        .toList();
+  }
+
+  Future<List<SalonPackage>> salonPackages({String? outletId}) async {
+    final query = <String, String>{};
+    if (outletId != null && outletId.isNotEmpty) {
+      query['outlet_id'] = outletId;
+    }
+    final data = await _get('/v1/salon/packages', query, false);
+    final items = data['packages'];
+    if (items is! List) return [];
+    return items
+        .whereType<Map<String, dynamic>>()
+        .map(SalonPackage.fromJson)
+        .toList();
+  }
+
+  Future<List<SalonService>> salonServices({
+    String? categoryId,
+    String? outletId,
+    String? packageId,
+    String? serviceType,
+    String? gender,
+    String? queryText,
+  }) async {
     final query = <String, String>{};
     if (categoryId != null && categoryId.isNotEmpty) {
       query['category_id'] = categoryId;
     }
+    if (outletId != null && outletId.isNotEmpty) {
+      query['outlet_id'] = outletId;
+    }
+    if (packageId != null && packageId.isNotEmpty) {
+      query['package_id'] = packageId;
+    }
+    if (serviceType != null && serviceType.isNotEmpty) {
+      query['service_type'] = serviceType;
+    }
+    if (gender != null && gender.isNotEmpty) query['gender'] = gender;
+    if (queryText != null && queryText.isNotEmpty) query['q'] = queryText;
     final data = await _get('/v1/salon/services', query, false);
     final items = data['services'];
     if (items is! List) {
@@ -725,11 +1216,15 @@ class CatalystApi {
   Future<List<SalonStaff>> salonStaff({
     required String outletId,
     String? serviceId,
+    String? gender,
+    String? queryText,
   }) async {
     final query = <String, String>{'outlet_id': outletId};
     if (serviceId != null && serviceId.isNotEmpty) {
       query['service_id'] = serviceId;
     }
+    if (gender != null && gender.isNotEmpty) query['gender'] = gender;
+    if (queryText != null && queryText.isNotEmpty) query['q'] = queryText;
     final data = await _get('/v1/salon/staff', query, false);
     final items = data['staff'];
     if (items is! List) {
@@ -776,15 +1271,44 @@ class CatalystApi {
     throw ApiException('Appointment was not returned');
   }
 
-  Future<SalonAppointment> bookAppointment({
-    required String slotId,
+  Future<BookAppointmentResult> bookAppointment({
+    String? slotId,
     required String serviceId,
+    String? outletId,
+    String? packageId,
+    String? staffId,
+    String? gender,
+    String? appointmentDate,
+    String? startTime,
   }) async {
-    return _appointmentFrom(
-      await _post('/v1/appointments', {
-        'slot_id': slotId,
-        'service_id': serviceId,
-      }),
+    final body = <String, dynamic>{'service_id': serviceId};
+    if (slotId != null && slotId.isNotEmpty) {
+      body['slot_id'] = slotId;
+    }
+    if (outletId != null && outletId.isNotEmpty) {
+      body['outlet_id'] = outletId;
+    }
+    if (packageId != null && packageId.isNotEmpty) {
+      body['package_id'] = packageId;
+    }
+    if (staffId != null && staffId.isNotEmpty) body['staff_id'] = staffId;
+    if (gender != null && gender.isNotEmpty) body['gender'] = gender;
+    if (appointmentDate != null && appointmentDate.isNotEmpty) {
+      body['appointment_date'] = appointmentDate;
+    }
+    if (startTime != null && startTime.isNotEmpty) {
+      body['start_time'] = startTime;
+    }
+    final data = await _post('/v1/appointments', body);
+    final notification = data['notification'];
+    return BookAppointmentResult(
+      appointment: _appointmentFrom(data),
+      notificationStatus: notification is Map
+          ? notification['status']?.toString() ?? ''
+          : '',
+      notificationReason: notification is Map
+          ? notification['reason']?.toString() ?? ''
+          : '',
     );
   }
 
@@ -830,23 +1354,22 @@ class CatalystApi {
     return _get('/v1/search', params, false);
   }
 
-  Future<List<SalonOutlet>> nearbyOutlets({double? lat, double? lng}) async {
-    if (lat == null || lng == null) {
-      final data = await _get('/v1/outlets/nearby', null, false);
-      final items = data['outlets'];
-      if (items is! List) return [];
-      return items
-          .whereType<Map<String, dynamic>>()
-          .map(SalonOutlet.fromJson)
-          .toList();
+  Future<List<SalonOutlet>> nearbyOutlets({
+    double? lat,
+    double? lng,
+    String? city,
+  }) async {
+    final params = <String, String>{'limit': '100'};
+    if (city != null && city.isNotEmpty) {
+      params['city'] = city;
     }
-    final data = await _get('/v1/outlets/nearby', {
-      'lat': lat.toString(),
-      'lng': lng.toString(),
-      'latitude': lat.toString(),
-      'longitude': lng.toString(),
-      'limit': '100',
-    }, false);
+    if (lat != null && lng != null) {
+      params['lat'] = lat.toString();
+      params['lng'] = lng.toString();
+      params['latitude'] = lat.toString();
+      params['longitude'] = lng.toString();
+    }
+    final data = await _get('/v1/salon/outlets', params, false);
     final items = data['outlets'];
     if (items is! List) return [];
     return items

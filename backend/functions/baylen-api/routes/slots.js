@@ -1,4 +1,6 @@
-const { asId, asText, rowOf, rowsOf, sendOk } = require("../lib/http");
+const { asId, asText, num, rowOf, rowsOf, sendOk } = require("../lib/http");
+const { requireUser } = require("../lib/session");
+const engine = require("../lib/salon-engine");
 
 function mapSlot(row) {
   const text = String(row.slot_date || "").trim();
@@ -42,7 +44,105 @@ function slotRoutes(app) {
       }
 
       const rows = rowsOf(await zcql.executeZCQLQuery(query), "Appointment_Slots");
-      sendOk(res, { slots: rows.map(mapSlot) });
+      if (rows.length) {
+        sendOk(res, { slots: rows.map(mapSlot), source: "stored" });
+        return;
+      }
+
+      const outlet = await engine.loadActiveOutlet(zcql, outletId);
+      let duration = 45;
+      if (serviceId) {
+        const priced = await engine.safeRows(
+          zcql,
+          "SELECT duration_minutes FROM Outlet_Service_Prices WHERE outlet_id = " +
+            outletId +
+            " AND service_id = " +
+            serviceId +
+            " AND is_active = true",
+          "Outlet_Service_Prices"
+        );
+        const service = rowOf(
+          await zcql.executeZCQLQuery(
+            "SELECT duration_minutes FROM Salon_Services WHERE ROWID = " + serviceId
+          ),
+          "Salon_Services"
+        );
+        duration = num(priced[0] && priced[0].duration_minutes) || num(service && service.duration_minutes) || 45;
+      }
+      const staffIds = staffId
+        ? [staffId]
+        : (
+            await engine.safeRows(
+              zcql,
+              "SELECT ROWID FROM Staff WHERE outlet_id = " +
+                outletId +
+                " AND status = 'ACTIVE' AND is_active = true",
+              "Staff"
+            )
+          ).map((row) => String(row.ROWID));
+      const generated = [];
+      const day = String(slotDate);
+      const isToday = day === engine.todayIsoInIst();
+      for (const id of staffIds) {
+        const booked = [];
+        const appointments = await engine.safeRows(
+          zcql,
+          "SELECT start_time, end_time, status FROM Appointments WHERE staff_id = " +
+            id +
+            " AND appointment_date = '" +
+            day +
+            "'",
+          "Appointments"
+        );
+        for (const row of appointments) {
+          if (["CANCELLED", "NO_SHOW"].includes(String(row.status || "").toUpperCase())) {
+            continue;
+          }
+          booked.push({
+            start: engine.parseClock(row.start_time),
+            end: engine.parseClock(row.end_time),
+          });
+        }
+        const reservedSlots = await engine.safeRows(
+          zcql,
+          "SELECT start_time, end_time, status FROM Appointment_Slots WHERE staff_id = " +
+            id +
+            " AND slot_date = '" +
+            day +
+            "'",
+          "Appointment_Slots"
+        );
+        for (const row of reservedSlots) {
+          if (!["BOOKED", "HELD"].includes(String(row.status || "").toUpperCase())) {
+            continue;
+          }
+          booked.push({
+            start: engine.parseClock(row.start_time),
+            end: engine.parseClock(row.end_time),
+          });
+        }
+        const slots = engine.generateDaySlots({
+          opening: outlet.opening_time,
+          closing: outlet.closing_time,
+          duration,
+          booked,
+          isToday,
+        });
+        for (const slot of slots) {
+          generated.push({
+            id: "",
+            outlet_id: outletId,
+            staff_id: id,
+            service_id: serviceId || "",
+            slot_date: day,
+            start_time: slot.start_time,
+            end_time: slot.end_time,
+            status: "AVAILABLE",
+            generated: true,
+          });
+        }
+      }
+      sendOk(res, { slots: generated, source: "generated" });
     } catch (error) {
       next(error);
     }
@@ -50,6 +150,7 @@ function slotRoutes(app) {
 
   app.post("/v1/slots/lock", async (req, res, next) => {
     try {
+      requireUser(req);
       const slotId = asId(req.body.slot_id, "slot_id");
       const appointmentId = req.body.appointment_id
         ? asId(req.body.appointment_id, "appointment_id")

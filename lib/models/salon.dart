@@ -1,3 +1,37 @@
+class SalonLocation {
+  const SalonLocation({
+    required this.city,
+    this.state = '',
+    this.pincode = '',
+    this.latitude = 0.0,
+    this.longitude = 0.0,
+    this.outletCount = 0,
+  });
+
+  final String city;
+  final String state;
+  final String pincode;
+  final double latitude;
+  final double longitude;
+  final int outletCount;
+
+  factory SalonLocation.fromJson(Map<String, dynamic> json) {
+    return SalonLocation(
+      city: json['city']?.toString() ?? '',
+      state: json['state']?.toString() ?? '',
+      pincode: json['pincode']?.toString() ?? '',
+      latitude: (json['latitude'] as num?)?.toDouble() ?? 0.0,
+      longitude: (json['longitude'] as num?)?.toDouble() ?? 0.0,
+      outletCount: (json['outlet_count'] as num?)?.toInt() ?? 0,
+    );
+  }
+
+  String get label {
+    final parts = [city, state].where((part) => part.isNotEmpty).toList();
+    return parts.join(', ');
+  }
+}
+
 class SalonOutlet {
   const SalonOutlet({
     required this.id,
@@ -20,6 +54,7 @@ class SalonOutlet {
     this.relevantServices = const [],
     this.googleMapsUrl = '',
     this.isActive = true,
+    this.packages = const [],
   });
 
   final String id;
@@ -42,6 +77,7 @@ class SalonOutlet {
   final List<OutletServicePreview> relevantServices;
   final String googleMapsUrl;
   final bool isActive;
+  final List<SalonPackage> packages;
 
   factory SalonOutlet.fromJson(Map<String, dynamic> json) {
     return SalonOutlet(
@@ -65,7 +101,16 @@ class SalonOutlet {
       relevantServices: _services(json['relevant_services']),
       googleMapsUrl: json['google_maps_url']?.toString() ?? '',
       isActive: json['is_active'] != false,
+      packages: _packages(json['packages']),
     );
+  }
+
+  static List<SalonPackage> _packages(Object? value) {
+    if (value is! List) return const [];
+    return value
+        .whereType<Map<String, dynamic>>()
+        .map(SalonPackage.fromJson)
+        .toList();
   }
 
   static List<OutletServicePreview> _services(Object? value) {
@@ -148,6 +193,55 @@ class OutletServicePreview {
   }
 }
 
+class SalonPackage {
+  const SalonPackage({
+    required this.id,
+    required this.name,
+    this.slug = '',
+    this.sortOrder = 0,
+  });
+
+  final String id;
+  final String name;
+  final String slug;
+  final int sortOrder;
+
+  factory SalonPackage.fromJson(Map<String, dynamic> json) {
+    return SalonPackage(
+      id: json['id']?.toString() ?? '',
+      name: json['name']?.toString() ?? '',
+      slug: json['slug']?.toString() ?? '',
+      sortOrder: (json['sort_order'] as num?)?.toInt() ?? 0,
+    );
+  }
+}
+
+class SalonServicePrice {
+  const SalonServicePrice({
+    required this.gender,
+    required this.mrp,
+    required this.sellingPrice,
+    required this.durationMinutes,
+    this.priceId = '',
+  });
+
+  final String gender;
+  final double mrp;
+  final double sellingPrice;
+  final int durationMinutes;
+  final String priceId;
+
+  factory SalonServicePrice.fromJson(Map<String, dynamic> json) {
+    return SalonServicePrice(
+      gender: json['gender']?.toString() ?? 'UNISEX',
+      mrp: (json['mrp'] as num?)?.toDouble() ?? 0,
+      sellingPrice: (json['selling_price'] as num?)?.toDouble() ?? 0,
+      durationMinutes: (json['duration_minutes'] as num?)?.toInt() ?? 0,
+      priceId: json['price_id']?.toString() ?? '',
+    );
+  }
+}
+
 class SalonService {
   const SalonService({
     required this.id,
@@ -158,6 +252,10 @@ class SalonService {
     required this.mrp,
     required this.sellingPrice,
     required this.currency,
+    this.serviceType = '',
+    this.packageId = '',
+    this.genders = const [],
+    this.prices = const [],
   });
 
   final String id;
@@ -168,8 +266,20 @@ class SalonService {
   final double mrp;
   final double sellingPrice;
   final String currency;
+  final String serviceType;
+  final String packageId;
+  final List<String> genders;
+  final List<SalonServicePrice> prices;
 
   factory SalonService.fromJson(Map<String, dynamic> json) {
+    final rawPrices = json['prices'];
+    final prices = rawPrices is List
+        ? rawPrices
+            .whereType<Map<String, dynamic>>()
+            .map(SalonServicePrice.fromJson)
+            .toList()
+        : const <SalonServicePrice>[];
+    final rawGenders = json['genders'];
     return SalonService(
       id: json['id']?.toString() ?? '',
       name: json['name']?.toString() ?? '',
@@ -179,7 +289,24 @@ class SalonService {
       mrp: (json['mrp'] as num?)?.toDouble() ?? 0,
       sellingPrice: (json['selling_price'] as num?)?.toDouble() ?? 0,
       currency: json['currency']?.toString() ?? 'INR',
+      serviceType: json['service_type']?.toString() ?? '',
+      packageId: json['package_id']?.toString() ?? '',
+      genders: rawGenders is List
+          ? rawGenders.map((item) => item.toString()).toList()
+          : prices.map((item) => item.gender).toList(),
+      prices: prices,
     );
+  }
+
+  SalonServicePrice? priceFor(String gender) {
+    final want = gender.toUpperCase();
+    for (final price in prices) {
+      if (price.gender.toUpperCase() == want) return price;
+    }
+    for (final price in prices) {
+      if (price.gender.toUpperCase() == 'UNISEX') return price;
+    }
+    return prices.isEmpty ? null : prices.first;
   }
 
   String get priceLabel {
@@ -196,12 +323,24 @@ class SalonStaff {
     required this.name,
     required this.designation,
     required this.outletId,
+    this.gender = '',
+    this.rating = 0,
+    this.experienceYears = 0,
+    this.profilePhotoUrl = '',
+    this.bio = '',
+    this.availability = '',
   });
 
   final String id;
   final String name;
   final String designation;
   final String outletId;
+  final String gender;
+  final double rating;
+  final double experienceYears;
+  final String profilePhotoUrl;
+  final String bio;
+  final String availability;
 
   factory SalonStaff.fromJson(Map<String, dynamic> json) {
     return SalonStaff(
@@ -209,8 +348,30 @@ class SalonStaff {
       name: json['name']?.toString() ?? '',
       designation: json['designation']?.toString() ?? '',
       outletId: json['outlet_id']?.toString() ?? '',
+      gender: json['gender']?.toString() ?? '',
+      rating: (json['rating'] as num?)?.toDouble() ?? 0,
+      experienceYears: (json['experience_years'] as num?)?.toDouble() ?? 0,
+      profilePhotoUrl:
+          json['profile_photo_url']?.toString() ??
+          json['profile_image']?.toString() ??
+          '',
+      bio: json['bio']?.toString() ?? '',
+      availability: json['availability']?.toString() ?? '',
     );
   }
+
+  String get genderLabel {
+    switch (gender.toUpperCase()) {
+      case 'MALE':
+        return 'Male';
+      case 'FEMALE':
+        return 'Female';
+      default:
+        return 'Any';
+    }
+  }
+
+  String get ratingLabel => rating > 0 ? rating.toStringAsFixed(1) : '';
 }
 
 class SalonSlot {
@@ -256,6 +417,13 @@ class SalonAppointment {
     required this.currency,
     required this.grandTotal,
     required this.items,
+    this.salonName = '',
+    this.location = '',
+    this.packageName = '',
+    this.serviceName = '',
+    this.employeeName = '',
+    this.gender = '',
+    this.notificationStatus = '',
   });
 
   final String id;
@@ -268,6 +436,13 @@ class SalonAppointment {
   final String currency;
   final double grandTotal;
   final List<SalonAppointmentItem> items;
+  final String salonName;
+  final String location;
+  final String packageName;
+  final String serviceName;
+  final String employeeName;
+  final String gender;
+  final String notificationStatus;
 
   factory SalonAppointment.fromJson(Map<String, dynamic> json) {
     final rawItems = json['items'];
@@ -281,6 +456,13 @@ class SalonAppointment {
       paymentStatus: json['payment_status']?.toString() ?? '',
       currency: json['currency']?.toString() ?? 'INR',
       grandTotal: (json['grand_total'] as num?)?.toDouble() ?? 0,
+      salonName: json['salon_name']?.toString() ?? '',
+      location: json['location']?.toString() ?? '',
+      packageName: json['package_name']?.toString() ?? '',
+      serviceName: json['service_name']?.toString() ?? '',
+      employeeName: json['employee_name']?.toString() ?? '',
+      gender: json['gender']?.toString() ?? '',
+      notificationStatus: json['notification_status']?.toString() ?? '',
       items: rawItems is List
           ? rawItems
                 .whereType<Map<String, dynamic>>()
@@ -296,9 +478,8 @@ class SalonAppointment {
   }
 
   String get serviceLabel {
-    if (items.isEmpty) {
-      return 'Appointment';
-    }
+    if (serviceName.isNotEmpty) return serviceName;
+    if (items.isEmpty) return 'Appointment';
     return items.map((item) => item.name).join(', ');
   }
 }
