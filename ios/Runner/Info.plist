@@ -27,7 +27,17 @@
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
 	<key>NSLocationWhenInUseUsageDescription</key>
-	<string>Baylen uses your location to show nearby salons and services.</string>
+	<string>Baylen Pro uses your location to share live travel updates with customers during active jobs.</string>
+	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
+	<string>Baylen Pro continues location updates while you travel to a customer, even if the app is in the background.</string>
+	<key>NSCameraUsageDescription</key>
+	<string>Baylen needs camera access to capture your selfie and passport photo for employee verification.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>Baylen needs photo library access if you choose an existing photo for employee verification.</string>
+	<key>UIBackgroundModes</key>
+	<array>
+		<string>location</string>
+	</array>
 	<key>UIApplicationSceneManifest</key>
 	<dict>
 		<key>UIApplicationSupportsMultipleScenes</key>

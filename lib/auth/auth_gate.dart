@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 
 import 'auth_service.dart';
-import '../screens/login_screen.dart';
+import '../auth/professional_onboarding.dart';
+import '../screens/auth/role_picker_screen.dart';
 import '../services/cart_service.dart';
 
 class AuthGate {
@@ -13,14 +14,21 @@ class AuthGate {
       return true;
     }
     if (message != null && message.isNotEmpty && context.mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(message)),
+      );
     }
-    final signedIn = await Navigator.of(context).push<bool>(
-      MaterialPageRoute<bool>(builder: (_) => const LoginScreen()),
+    final result = await Navigator.of(context).push<AuthRoleResult>(
+      MaterialPageRoute<AuthRoleResult>(
+        builder: (_) => RolePickerScreen(message: message),
+      ),
     );
-    if (signedIn == true) {
+    if (result == AuthRoleResult.customerSignedIn) {
       await CartService.instance.fetchCart();
       return true;
+    }
+    if (result == AuthRoleResult.deliveryPartnerSignedIn && context.mounted) {
+      await ProfessionalOnboarding.navigateAfterOtp(context);
     }
     return false;
   }

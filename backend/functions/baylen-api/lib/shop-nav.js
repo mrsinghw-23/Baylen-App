@@ -16,6 +16,8 @@ const PUBLIC_MENU_ROOTS = [
   "offers",
 ];
 
+const SHOP_FILTER_ROOTS = PUBLIC_MENU_ROOTS.filter((slug) => slug !== "offers");
+
 function byParent(rows) {
   const map = {};
   rows.forEach((row) => {
@@ -110,4 +112,4 @@ function buildNavigation(categoryRows, brandRows) {
   return { menus: hubs, count: hubs.length };
 }
 
-module.exports = { buildNavigation, byParent, PUBLIC_MENU_ROOTS };
+module.exports = { buildNavigation, byParent, PUBLIC_MENU_ROOTS, SHOP_FILTER_ROOTS };

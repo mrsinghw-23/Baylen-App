@@ -45,6 +45,12 @@ class _LoginScreenState extends State<LoginScreen> {
     });
     try {
       final request = await AuthService.instance.requestOtp(_mobileText);
+      if (!request.deliveredViaWhatsapp &&
+          request.sentVia.toUpperCase() != 'DEV') {
+        throw ApiException(
+          'OTP could not be sent on WhatsApp. Please try again.',
+        );
+      }
       if (!mounted) return;
       setState(() {
         _request = request;
@@ -84,21 +90,18 @@ class _LoginScreenState extends State<LoginScreen> {
       );
       if (!mounted) return;
       if (!user.isProfileComplete) {
-        // Mandatory Profile Registration Screen for incomplete profiles
-        final registered = await Navigator.of(context)
-            .pushReplacement<bool, void>(
-              MaterialPageRoute(
-                builder: (_) => ProfileSetupScreen(
-                  mobile: request.mobile,
-                  initialFirstName: user.firstName,
-                  initialLastName: user.lastName,
-                  initialEmail: user.email,
-                ),
-              ),
-            );
-        if (registered == true && mounted) {
-          // Finished registration
-        }
+        final registered = await Navigator.of(context).push<bool>(
+          MaterialPageRoute(
+            builder: (_) => ProfileSetupScreen(
+              mobile: request.mobile,
+              initialFirstName: user.firstName,
+              initialLastName: user.lastName,
+              initialEmail: user.email,
+            ),
+          ),
+        );
+        if (!mounted) return;
+        Navigator.of(context).pop(registered == true);
       } else {
         Navigator.of(context).pop(true);
       }
@@ -138,6 +141,18 @@ class _LoginScreenState extends State<LoginScreen> {
     });
   }
 
+  String _otpDeliveryMessage(OtpRequestResult request) {
+    if (request.deliveredViaWhatsapp) {
+      return 'OTP sent to WhatsApp on ${request.mobile}';
+    }
+    if (request.sentVia.toUpperCase() == 'DEV' &&
+        request.debugOtp != null &&
+        request.debugOtp!.isNotEmpty) {
+      return 'Development OTP: ${request.debugOtp} (WhatsApp unavailable)';
+    }
+    return 'OTP sent to ${request.mobile}';
+  }
+
   @override
   Widget build(BuildContext context) {
     final primary = Theme.of(context).colorScheme.primary;
@@ -162,7 +177,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 ),
                 const SizedBox(height: 8),
                 Text(
-                  'Explore freely as a guest. Sign in only when Baylen needs to save your cart, wishlist, bookings, orders, or profile data.',
+                  'Enter your mobile number. We will send a 6-digit OTP to WhatsApp on that number.',
                   style: Theme.of(context).textTheme.bodyMedium,
                   textAlign: TextAlign.center,
                 ),
@@ -209,7 +224,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     children: [
                       Expanded(
                         child: Text(
-                          'OTP sent to ${request.mobile}',
+                          _otpDeliveryMessage(request),
                           style: const TextStyle(fontWeight: FontWeight.w700),
                         ),
                       ),
@@ -229,7 +244,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     inputFormatters: [FilteringTextInputFormatter.digitsOnly],
                     decoration: const InputDecoration(
                       labelText: 'OTP',
-                      hintText: 'Enter 6-digit OTP',
+                      hintText: '6-digit code from WhatsApp',
                       counterText: '',
                       prefixIcon: Icon(Icons.lock_outline),
                     ),

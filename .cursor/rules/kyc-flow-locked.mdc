@@ -1,0 +1,44 @@
+---
+description: Locked delivery-partner KYC flow (manual Aadhaar + docs). DigiLocker integration is future-only.
+globs: lib/screens/delivery_partner/**,lib/utils/kyc_*,lib/utils/passport_photo_crop.dart,lib/models/delivery_partner_kyc.dart,backend/functions/baylen-api/lib/delivery-partner-kyc*.js,backend/functions/baylen-api/routes/delivery-partner.js
+alwaysApply: false
+---
+
+# Delivery Partner KYC — LOCKED (v1 manual)
+
+Current production-intent flow is **manual KYC only**. Do not refactor, simplify, or replace unless the user explicitly asks for DigiLocker work.
+
+## Locked flow (registration → KYC → dashboard)
+
+1. Employee registration: profile → password (no registration photo step)
+2. KYC screen (single page, strict order):
+   - 12-digit Aadhaar (auto-save on 12 digits; submit also accepts `aadhaar_number`)
+   - Aadhaar front upload
+   - Aadhaar back upload
+   - Selfie via front camera → auto passport-size crop (7:9) → upload as `profile_photo` + sync `Delivery_Partners.profile_photo_url`
+3. Submit → self-activate → professional dashboard → go online
+
+## Backend invariants (do not break)
+
+- `assertSubmitReady`: requires `aadhaar_last4` OR `aadhaar_hash`, plus three KYC documents
+- `isRegistrationProfilePhoto`: only exclude profile photo when `partner.selfie_file_id === kyc.profile_photo_file_id` (KYC uploads that sync to `profile_photo_url` must count as uploaded)
+- `KYC_SELECT` is capped at 30 ZCQL columns — use `aadhaar_last4` for submit checks, not `aadhaar_hash` alone
+- Partial KYC save via `saveKycDraft` with `compactKycWrite`
+
+## Flutter invariants (do not break)
+
+- Sequential unlock: Aadhaar → front → back → selfie
+- Selfie: `pickKycSelfie()` → `RegistrationCameraScreen` + `cropToPassportPhoto()`
+- Green tick only after real upload (`_uploadedThisSession` + API `documents.*.uploaded`)
+- Do not restore full Aadhaar in UI (masked only from server)
+
+## Future: DigiLocker (NOT implemented)
+
+When integrating DigiLocker later, extend at these seams only — do not rewrite v1:
+
+- **Identity source**: replace manual Aadhaar number entry with DigiLocker consent + fetched Aadhaar XML/PDF; still write `aadhaar_hash` / `aadhaar_last4` via `buildSensitiveFields`
+- **Documents**: optional auto-fetch Aadhaar front/back from DigiLocker instead of camera upload; keep same `identity_document` / `address_document` filestore fields
+- **Submit gate**: `assertSubmitReady` stays the same; add DigiLocker verification flag only if needed
+- **UI**: add a parallel path or toggle on `DeliveryPartnerKycScreen`; keep manual path as fallback until DigiLocker is mandatory
+
+Do not add DigiLocker SDK, API routes, or env vars until explicitly requested.

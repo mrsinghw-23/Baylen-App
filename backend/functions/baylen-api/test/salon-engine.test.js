@@ -35,6 +35,15 @@ describe("salon location matching", () => {
     const delhi = filterOutletsByLocation(rows, { city: "Delhi" }).map((item) => item.row.name);
     assert.deepEqual(delhi, ["Royal Looks", "Diamond Luxe"]);
   });
+
+  it("does not treat missing coordinates as 0,0", () => {
+    const rows = [
+      { ROWID: "1", name: "Near Null Island", city: "Test", is_active: true, latitude: 0.1, longitude: 0.1 },
+      { ROWID: "2", name: "Ranchi Salon", city: "Ranchi", is_active: true, latitude: 23.36, longitude: 85.33 },
+    ];
+    const filtered = filterOutletsByLocation(rows, { lat: null, lng: null, radius_km: 5 });
+    assert.equal(filtered.length, 2);
+  });
 });
 
 describe("salon gender pricing", () => {

@@ -1,6 +1,7 @@
 "use strict";
 
 const { asId, isTruthy, num, rowOf, rowsOf, sqlString } = require("./http");
+const { parseLocation } = require("./geo-coords");
 
 const PACKAGE_ORDER = ["Bronze", "Silver", "Gold", "Royal", "Luxury", "Diamond"];
 const CITY_ALIASES = {
@@ -91,6 +92,10 @@ function isoDate(value) {
   const text = String(value || "").trim();
   const iso = text.match(/^(\d{4}-\d{2}-\d{2})/);
   return iso ? iso[1] : text.slice(0, 10);
+}
+
+function isAtHomeEnabled(value) {
+  return value === true || value === "true" || value === 1 || value === "1";
 }
 
 function genderMatches(offered, requested) {
@@ -188,12 +193,16 @@ function serviceTypeFromCategory(service) {
 function filterOutletsByLocation(outlets, query) {
   const city = String(query.city || query.location || "").trim();
   const pincode = String(query.pincode || query.postal_code || "").trim();
-  const lat = Number(query.lat || query.latitude);
-  const lng = Number(query.lng || query.longitude);
+  const coords = parseLocation(
+    query.lat ?? query.latitude,
+    query.lng ?? query.longitude
+  );
+  const lat = coords?.latitude;
+  const lng = coords?.longitude;
   const radius = Math.min(Math.max(Number(query.radius_km) || 25, 1), 80);
   const hasCity = Boolean(cityKey(city));
   const hasPin = /^\d{6}$/.test(pincode);
-  const hasCoords = Number.isFinite(lat) && Number.isFinite(lng);
+  const hasCoords = coords !== null;
 
   return outlets
     .filter((row) => isTruthy(row.is_active) || row.is_active === undefined)
@@ -331,6 +340,9 @@ function generateDaySlots(options) {
 function groupServiceOffers(services, priceRows, filters) {
   const typeFilter = String((filters && filters.service_type) || "").trim().toLowerCase();
   const genderFilter = String((filters && filters.gender) || "").trim();
+  const atHomeOnly =
+    isAtHomeEnabled(filters && filters.is_at_home) ||
+    String((filters && filters.fulfillment_mode) || "").trim().toUpperCase() === "AT_HOME";
   const needle = normalizeSearch((filters && filters.q) || "");
   const byId = new Map(services.map((row) => [String(row.ROWID), row]));
   const grouped = new Map();
@@ -350,6 +362,9 @@ function groupServiceOffers(services, priceRows, filters) {
       continue;
     }
     if (service.is_active !== undefined && !isTruthy(service.is_active)) {
+      continue;
+    }
+    if (atHomeOnly && service.is_at_home !== undefined && service.is_at_home !== null && !isAtHomeEnabled(service.is_at_home)) {
       continue;
     }
     const type = service.service_type || serviceTypeFromCategory(service);
@@ -376,6 +391,7 @@ function groupServiceOffers(services, priceRows, filters) {
         category_id: service.category_id ? String(service.category_id) : "",
         currency: service.currency || "INR",
         package_id: price.package_id ? String(price.package_id) : "",
+        is_at_home: isAtHomeEnabled(service.is_at_home),
         prices: [],
         genders: [],
       });
@@ -432,6 +448,39 @@ function locationLabel(row) {
     .join(", ");
 }
 
+async function loadActiveOutlets(zcql) {
+  return safeRows(
+    zcql,
+    "SELECT ROWID, name, slug, code, salon_category, address_line1, area, city, state, postal_code, phone, latitude, longitude, opening_time, closing_time, rating, review_count, image_url, google_maps_url, is_active, service_radius_km FROM Outlets WHERE is_active = true",
+    "Outlets"
+  );
+}
+
+async function loadOutletServiceOffers(zcql, outletId, filters = {}) {
+  await loadActiveOutlet(zcql, outletId);
+  const packageId = filters.package_id ? String(filters.package_id) : "";
+  let priceQuery =
+    "SELECT ROWID, outlet_id, package_id, service_id, gender, mrp, selling_price, duration_minutes, is_active FROM Outlet_Service_Prices WHERE outlet_id = " +
+    outletId +
+    " AND is_active = true";
+  if (packageId) {
+    priceQuery += " AND package_id = " + packageId;
+  }
+  const priceRows = rowsOf(await zcql.executeZCQLQuery(priceQuery), "Outlet_Service_Prices");
+  const services = rowsOf(
+    await zcql.executeZCQLQuery(
+      "SELECT ROWID, name, slug, description, category_id, image_url, duration_minutes, gender, mrp, selling_price, currency, status, is_active, service_type, is_at_home FROM Salon_Services"
+    ),
+    "Salon_Services"
+  );
+  return groupServiceOffers(services, priceRows, filters);
+}
+
+async function loadNearbyOutletMatches(zcql, query = {}) {
+  const rows = await loadActiveOutlets(zcql);
+  return filterOutletsByLocation(rows, query);
+}
+
 module.exports = {
   PACKAGE_ORDER,
   money,
@@ -461,4 +510,8 @@ module.exports = {
   pickPriceRow,
   bookingNumber,
   locationLabel,
+  isAtHomeEnabled,
+  loadActiveOutlets,
+  loadOutletServiceOffers,
+  loadNearbyOutletMatches,
 };

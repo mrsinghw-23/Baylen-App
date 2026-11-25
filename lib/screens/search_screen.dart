@@ -3,8 +3,14 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 
 import '../api/catalyst_api.dart';
+import '../models/catalog.dart';
+import '../models/salon.dart';
+import '../services/delivery_location_service.dart';
 import '../services/location_service.dart';
 import '../widgets/home/_home_constants.dart';
+import 'outlet_detail_screen.dart';
+import 'product_detail_screen.dart';
+import 'shop_brand_page.dart';
 
 class SearchScreen extends StatefulWidget {
   const SearchScreen({super.key});
@@ -157,10 +163,84 @@ class _SearchScreenState extends State<SearchScreen> {
           ),
         ],
       ),
-      onTap: () {
-        // Deep link based on type
-      },
+      onTap: () => _openResult(item),
     );
+  }
+
+  Future<void> _openResult(Map<String, dynamic> item) async {
+    final type = item['type']?.toString() ?? '';
+    switch (type) {
+      case 'product':
+        final id = item['id']?.toString() ?? '';
+        if (id.isEmpty) return;
+        try {
+          final coords = await DeliveryLocationService.instance.resolve();
+          final detail = await _api.productDetail(
+            id,
+            latitude: coords.latitude,
+            longitude: coords.longitude,
+          );
+          if (!mounted) return;
+          await Navigator.of(context).push(
+            MaterialPageRoute<void>(
+              builder: (_) => ProductDetailScreen(product: detail.product),
+            ),
+          );
+        } catch (_) {
+          if (!mounted) return;
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Could not open this product.')),
+          );
+        }
+        return;
+      case 'brand':
+        final slug =
+            item['slug']?.toString().trim() ??
+            item['id']?.toString().trim() ??
+            '';
+        if (slug.isEmpty) return;
+        await Navigator.of(context).push(
+          MaterialPageRoute<void>(
+            builder: (_) => ShopBrandPage(slug: slug),
+          ),
+        );
+        return;
+      case 'outlet':
+        final address = item['address']?.toString() ?? '';
+        final outlet = SalonOutlet(
+          id: item['id']?.toString() ?? '',
+          name: item['name']?.toString() ?? '',
+          addressLine1: address,
+          city: item['city']?.toString() ?? '',
+          phone: item['phone']?.toString() ?? '',
+          openingTime: item['opening_time']?.toString() ?? '',
+          closingTime: item['closing_time']?.toString() ?? '',
+          rating: (item['rating'] as num?)?.toDouble() ?? 0,
+          reviewCount: (item['review_count'] as num?)?.toInt() ?? 0,
+          imageUrl: item['image_url']?.toString() ?? '',
+          salonCategory: item['salon_category']?.toString() ?? '',
+          latitude: (item['latitude'] as num?)?.toDouble() ?? 0,
+          longitude: (item['longitude'] as num?)?.toDouble() ?? 0,
+          distanceKm: (item['distance_km'] as num?)?.toDouble() ?? 0,
+        );
+        if (outlet.id.isEmpty) return;
+        await Navigator.of(context).push(
+          MaterialPageRoute<void>(
+            builder: (_) => OutletDetailScreen(outlet: outlet),
+          ),
+        );
+        return;
+      case 'service':
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Open the Salon tab to browse and book services.'),
+          ),
+        );
+        return;
+      default:
+        return;
+    }
   }
 
   @override

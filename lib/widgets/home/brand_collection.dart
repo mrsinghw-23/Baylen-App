@@ -15,14 +15,6 @@ class BrandCollection extends StatelessWidget {
   final VoidCallback onViewAll;
   final void Function(Map<String, dynamic>) onBrandTap;
 
-  static const _fallback = [
-    'L\u2019OR\u00c9AL',
-    'WELLA',
-    'K\u00c9RASTASE',
-    'SCHWARZKOPF',
-    'OLAPLEX',
-  ];
-
   @override
   Widget build(BuildContext context) {
     return Column(
@@ -37,30 +29,25 @@ class BrandCollection extends StatelessWidget {
           height: 56,
           child: loading
               ? _SkeletonRow()
+              : brands.isEmpty
+              ? const Center(
+                  child: Text(
+                    'No brands available.',
+                    style: TextStyle(color: kHomeTextSecondary, fontSize: 13),
+                  ),
+                )
               : ListView.builder(
                   scrollDirection: Axis.horizontal,
                   padding: const EdgeInsets.symmetric(horizontal: 16),
-                  itemCount: brands.isNotEmpty
-                      ? brands.length
-                      : _fallback.length,
+                  itemCount: brands.length,
                   itemBuilder: (context, i) {
-                    if (brands.isNotEmpty) {
-                      final b = brands[i];
-                      return Padding(
-                        padding: const EdgeInsets.only(right: 12),
-                        child: _BrandCard(
-                          name: b['name']?.toString() ?? '',
-                          logoUrl: b['logo_url']?.toString() ?? '',
-                          onTap: () => onBrandTap(b),
-                        ),
-                      );
-                    }
+                    final b = brands[i];
                     return Padding(
                       padding: const EdgeInsets.only(right: 12),
                       child: _BrandCard(
-                        name: _fallback[i],
-                        logoUrl: '',
-                        onTap: () {},
+                        name: b['name']?.toString() ?? '',
+                        logoUrl: b['logo_url']?.toString() ?? '',
+                        onTap: () => onBrandTap(b),
                       ),
                     );
                   },

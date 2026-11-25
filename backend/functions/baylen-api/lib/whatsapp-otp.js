@@ -1,3 +1,5 @@
+const { isProductionRuntime } = require("./runtime-config");
+
 const WHATSAPP_ENV_KEYS = [
   "TATA_WHATSAPP_API_KEY",
   "TATA_WHATSAPP_SENDER",
@@ -30,7 +32,53 @@ function getWhatsappOtpConfig() {
 }
 
 function isDevOtpFallbackEnabled() {
+  if (isProductionRuntime()) {
+    return false;
+  }
   return String(process.env.AUTH_OTP_DEV_RETURN_CODE || "false").toLowerCase() === "true";
+}
+
+function parseWhatsappGatewayResponse(parsed) {
+  if (parsed == null || parsed === "") {
+    return { accepted: false, reason: "Empty gateway response" };
+  }
+  if (typeof parsed === "string") {
+    const text = parsed.trim();
+    if (!text) {
+      return { accepted: false, reason: "Empty gateway response" };
+    }
+    return { accepted: false, reason: sanitizeTataError(text) };
+  }
+  if (parsed.error) {
+    const reason =
+      typeof parsed.error === "string"
+        ? parsed.error
+        : parsed.error.message || parsed.error.title || JSON.stringify(parsed.error);
+    return { accepted: false, reason: sanitizeTataError(reason) };
+  }
+  if (Array.isArray(parsed.errors) && parsed.errors.length > 0) {
+    const first = parsed.errors[0];
+    const reason =
+      typeof first === "string"
+        ? first
+        : first.message || first.title || JSON.stringify(first);
+    return { accepted: false, reason: sanitizeTataError(reason) };
+  }
+  const messages = parsed.messages;
+  if (Array.isArray(messages) && messages.length > 0) {
+    const messageId = String(messages[0].id || messages[0].message_id || "").trim();
+    if (messageId) {
+      return { accepted: true, messageId };
+    }
+  }
+  const directId = String(parsed.message_id || parsed.id || "").trim();
+  if (directId) {
+    return { accepted: true, messageId: directId };
+  }
+  if (parsed.status === "success" || parsed.success === true) {
+    return { accepted: true, messageId: directId || "accepted" };
+  }
+  return { accepted: false, reason: "Gateway did not confirm WhatsApp message delivery" };
 }
 
 function getWhatsappOtpStatus() {
@@ -59,16 +107,12 @@ function sanitizeTataError(value) {
   return text.replace(/Bearer\s+[A-Za-z0-9._\-]+/gi, "Bearer [redacted]").slice(0, 500);
 }
 
-async function sendWhatsappOtp(mobile, otp) {
+async function sendWhatsappAuthTemplate(mobile, code) {
   const config = getWhatsappOtpConfig();
   if (!config.apiKey) {
-    const error = new Error(
-      "WhatsApp OTP is not configured on baylen-api. Set TATA_WHATSAPP_API_KEY, TATA_WHATSAPP_SENDER, and TATA_TEMPLATE_NAME."
-    );
-    error.status = 503;
-    throw error;
+    return { status: "FAILED", reason: "WhatsApp is not configured" };
   }
-
+  const otp = String(code || "").replace(/\D/g, "").slice(-6).padStart(6, "0");
   const to = `91${digitsOnly(mobile).slice(-10)}`;
   const from = config.sender ? `91${digitsOnly(config.sender).slice(-10)}` : "";
   const attempts = [
@@ -77,8 +121,8 @@ async function sendWhatsappOtp(mobile, otp) {
     { language: "en_US", includeButton: true, includeFrom: Boolean(from) },
     { language: "en", includeButton: true, includeFrom: false },
   ];
+  let lastError = "WhatsApp gateway rejected the auth template.";
 
-  let lastError = "WhatsApp gateway rejected the OTP template.";
   for (const attempt of attempts) {
     const components = [
       {
@@ -124,26 +168,42 @@ async function sendWhatsappOtp(mobile, otp) {
         parsed = JSON.parse(raw);
       } catch (_) {}
       if (response.ok) {
-        console.log(`[sendOtp] WhatsApp dispatched to ${to} via ${config.template}`);
-        return { sentVia: "WHATSAPP" };
+        const gateway = parseWhatsappGatewayResponse(parsed);
+        if (gateway.accepted) {
+          return {
+            status: "SENT",
+            messageId: gateway.messageId || "",
+            mode: "auth_template",
+            template: config.template,
+            auth_code: otp,
+          };
+        }
+        lastError = gateway.reason || "Gateway did not confirm WhatsApp message delivery";
+      } else {
+        lastError = sanitizeTataError(parsed);
       }
-      lastError = sanitizeTataError(parsed);
-      console.error("[sendOtp] Tata Omni error", response.status, lastError);
     } catch (err) {
       lastError =
         err.name === "TimeoutError" || err.name === "AbortError"
           ? "WhatsApp gateway timed out"
           : err.message;
-      console.error("[sendOtp] Tata Omni network error:", lastError);
     }
   }
 
+  return { status: "FAILED", reason: lastError, mode: "auth_template", template: config.template };
+}
+
+async function sendWhatsappOtp(mobile, otp) {
+  const result = await sendWhatsappAuthTemplate(mobile, otp);
+  if (result.status === "SENT") {
+    return { sentVia: "WHATSAPP", messageId: result.messageId || "" };
+  }
   const error = new Error("Could not send OTP on WhatsApp. Please try again.");
   error.status = 502;
   error.details = {
-    gateway: lastError,
-    template: config.template,
-    sender_configured: Boolean(config.sender),
+    gateway: result.reason,
+    template: result.template,
+    sender_configured: Boolean(getWhatsappOtpConfig().sender),
   };
   throw error;
 }
@@ -153,5 +213,7 @@ module.exports = {
   getWhatsappOtpConfig,
   getWhatsappOtpStatus,
   isDevOtpFallbackEnabled,
+  parseWhatsappGatewayResponse,
+  sendWhatsappAuthTemplate,
   sendWhatsappOtp,
 };

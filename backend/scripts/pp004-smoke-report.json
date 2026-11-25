@@ -1,0 +1,98 @@
+{
+  "fixtures": {
+    "partners": {
+      "A": "36851000000379403",
+      "B": "36851000000391429",
+      "C": "36851000000381800",
+      "D": "36851000000378825"
+    },
+    "jobs": {
+      "homeAccept": {
+        "professional_job_id": "36851000000392163",
+        "job_status": "ASSIGNMENT_PENDING",
+        "delivery_partner_row_id": ""
+      },
+      "homeReject": {
+        "professional_job_id": "36851000000388570",
+        "job_status": "ASSIGNMENT_PENDING",
+        "delivery_partner_row_id": ""
+      },
+      "productPrepaid": {
+        "professional_job_id": "36851000000394489",
+        "job_status": "ASSIGNMENT_PENDING",
+        "delivery_partner_row_id": ""
+      },
+      "productCod": {
+        "professional_job_id": "36851000000388571",
+        "job_status": "ASSIGNMENT_PENDING",
+        "delivery_partner_row_id": ""
+      },
+      "productConcur": {
+        "professional_job_id": "36851000000376854",
+        "job_status": "ASSIGNMENT_PENDING",
+        "delivery_partner_row_id": ""
+      },
+      "productExpire": {
+        "professional_job_id": "36851000000399162",
+        "job_status": "ASSIGNMENT_PENDING",
+        "delivery_partner_row_id": ""
+      }
+    }
+  },
+  "scenarios": {
+    "A_home_service_accept": {
+      "ok": true,
+      "http_status": 200,
+      "detail_phase": "accepted",
+      "service_job_status": "ACCEPTED"
+    },
+    "B_reject_redispatch": {
+      "ok": true,
+      "reject_via": "engine",
+      "reject_success": true,
+      "reject_new_status": "ASSIGNED",
+      "reassigned_to_b": true,
+      "b_accept_status": 200,
+      "single_pj_row": "36851000000388570"
+    },
+    "C_product_delivery_accept": {
+      "ok": true,
+      "http_status": 200,
+      "payment_status": "PAID"
+    },
+    "F_cross_professional_concurrency": {
+      "ok": true,
+      "b_attempt_status": 404,
+      "a_accept_status": 200,
+      "guarantee": "single_assignee_per_offer"
+    },
+    "idempotency": {
+      "ok": true,
+      "first_status": 200,
+      "second_status": 200,
+      "b_status": 404,
+      "accept_history_count": 62,
+      "accept_history_delta": 0
+    },
+    "security": {
+      "ok": true,
+      "pending_kyc_status": 403,
+      "suspended_status": 403,
+      "cross_detail_status": 404
+    },
+    "D_cod_accept": {
+      "ok": true,
+      "http_status": 200,
+      "payment_status_before": "PENDING",
+      "payment_method": "COD"
+    },
+    "E_offer_expiry": {
+      "ok": true,
+      "final_status": "ASSIGNED",
+      "stale_accept_status": 404,
+      "assigned_partner": "36851000000391429"
+    }
+  },
+  "architecture_note": "PP-004 assigns one professional per offer (ASSIGNED). Simultaneous multi-offer broadcast is not supported; concurrency is enforced via row lock + single assignee ownership.",
+  "ok": true
+}

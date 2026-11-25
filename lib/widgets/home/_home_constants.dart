@@ -8,6 +8,50 @@ const kHomeOutline = Color(0xFF2B2B34);
 const kHomeTextSecondary = Color(0xFFAAA4B6);
 const kHomeStarColor = Color(0xFFFFB800);
 
+class HomeFullWidthButton extends StatelessWidget {
+  const HomeFullWidthButton({
+    super.key,
+    required this.label,
+    required this.onPressed,
+    this.loading = false,
+  });
+
+  final String label;
+  final VoidCallback? onPressed;
+  final bool loading;
+
+  @override
+  Widget build(BuildContext context) {
+    final enabled = onPressed != null && !loading;
+    return Material(
+      color: enabled ? kHomePink : kHomeOutline,
+      borderRadius: BorderRadius.circular(8),
+      child: InkWell(
+        onTap: enabled ? onPressed : null,
+        borderRadius: BorderRadius.circular(8),
+        child: SizedBox(
+          height: 48,
+          child: Center(
+            child: loading
+                ? const SizedBox(
+                    width: 22,
+                    height: 22,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : Text(
+                    label,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 class SkeletonBox extends StatelessWidget {
   const SkeletonBox({super.key, this.width, this.height = 16, this.radius = 6});
   final double? width;

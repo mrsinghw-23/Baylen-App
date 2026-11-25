@@ -418,6 +418,17 @@ async function upsertProductMaster(app, body) {
     has_variants: isTruthy(body.has_variants) || !!body.sku,
     is_featured: isTruthy(body.is_featured),
     is_returnable: body.is_returnable === undefined ? true : isTruthy(body.is_returnable),
+    quick_commerce_enabled:
+      body.quick_commerce_enabled === undefined || body.quick_commerce_enabled === ""
+        ? true
+        : isTruthy(body.quick_commerce_enabled),
+    ecommerce_enabled:
+      body.ecommerce_enabled === undefined || body.ecommerce_enabled === ""
+        ? true
+        : isTruthy(body.ecommerce_enabled),
+    quick_commerce_restriction_reason:
+      optionalText(body.quick_commerce_restriction_reason, "quick_commerce_restriction_reason", 180) ||
+      null,
     status,
     visibility: optionalText(body.visibility, "visibility", 30) || "PUBLISHED",
   };

@@ -1,0 +1,12 @@
+---
+description: Preserve Baylen salon icon mapping
+alwaysApply: true
+---
+
+# Salon Icons
+
+- The salon card icon is `assets/icon/logo.png`.
+- Do not replace salon icons with `assets/branding/baylen-circular-logo.png` or gallery promotional images unless the user explicitly asks.
+- Home salon cards in `lib/widgets/home/nearby_salons.dart` must keep the existing circular icon layout and use `assets/icon/logo.png`.
+- Fallback salon data in `lib/screens/home_screen.dart` must use `assets/icon/logo.png`.
+- Active `Outlets.image_url` rows in Catalyst should remain mapped to `assets/icon/logo.png` for salon listing icons.

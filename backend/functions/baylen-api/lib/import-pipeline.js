@@ -364,7 +364,14 @@ async function processImportJob(app, jobId, { actor = "ADMIN", batchSize = 25 } 
         });
 
         if (record.stock !== undefined && String(record.stock).trim() !== "") {
-          const warehouse = await resolveWarehouse(app.zcql(), null, record.warehouse_code || "HQ");
+          const explicitWarehouseCode =
+            record.warehouse_code !== undefined &&
+            String(record.warehouse_code).trim() !== "";
+          const warehouse = await resolveWarehouse(
+            app.zcql(),
+            null,
+            explicitWarehouseCode ? String(record.warehouse_code).trim() : undefined
+          );
           await setAbsoluteStock(
             app,
             {

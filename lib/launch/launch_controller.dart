@@ -6,7 +6,10 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../api/catalyst_api.dart';
 import '../auth/auth_service.dart';
+import '../auth/browser_bridge.dart' as browser;
+import '../auth/delivery_partner_auth_service.dart';
 import '../models/launch_content.dart';
+import '../screens/auth/professional_launch_gate.dart';
 import '../services/location_service.dart';
 import '../shell/main_shell.dart';
 import 'baylen_splash_screen.dart';
@@ -26,6 +29,7 @@ class _BaylenLaunchControllerState extends State<BaylenLaunchController> {
   static const _seenLaunchContentKey = 'baylen_seen_launch_content';
 
   bool _showHome = false;
+  bool _showDeliveryPartnerHome = false;
   bool _splashDone = false;
   bool _showLocationPermission = false;
   bool _showLaunchExperience = false;
@@ -42,9 +46,24 @@ class _BaylenLaunchControllerState extends State<BaylenLaunchController> {
     final stopwatch = Stopwatch()..start();
     LaunchContent launchContent = const LaunchContent.empty();
 
-    // 1. Restore auth session in background (with timeout to prevent freezing)
+    // 1. Restore auth sessions in background (with timeout to prevent freezing)
     try {
-      await AuthService.instance.restore().timeout(const Duration(seconds: 4));
+      final activeRole = await browser.readActiveRole();
+      if (activeRole == 'delivery_partner') {
+        await DeliveryPartnerAuthService.instance.restore().timeout(
+          const Duration(seconds: 4),
+        );
+        if (!mounted) return;
+        if (DeliveryPartnerAuthService.instance.isSignedIn) {
+          setState(() {
+            _showDeliveryPartnerHome = true;
+            _splashDone = true;
+          });
+          return;
+        }
+      } else {
+        await AuthService.instance.restore().timeout(const Duration(seconds: 4));
+      }
     } catch (_) {}
 
     // 2. Fetch launch content & check seen IDs (with timeout)
@@ -89,7 +108,16 @@ class _BaylenLaunchControllerState extends State<BaylenLaunchController> {
 
     _launchContent = launchContent;
 
-    // Remove the forced location block so the app opens properly
+    final activeRole = await browser.readActiveRole();
+    if (activeRole == 'delivery_partner' &&
+        DeliveryPartnerAuthService.instance.isSignedIn) {
+      setState(() {
+        _showDeliveryPartnerHome = true;
+        _splashDone = true;
+      });
+      return;
+    }
+
     _proceedAfterLocation();
   }
 
@@ -169,10 +197,22 @@ class _BaylenLaunchControllerState extends State<BaylenLaunchController> {
 
   @override
   Widget build(BuildContext context) {
+    if (_showDeliveryPartnerHome) {
+      return ProfessionalLaunchGate(
+        onExit: () {
+          if (!mounted) return;
+          setState(() {
+            _showDeliveryPartnerHome = false;
+            _showHome = true;
+            _splashDone = true;
+          });
+        },
+      );
+    }
+
     return Stack(
       fit: StackFit.expand,
       children: [
-        // 1. Main App Shell (Home)
         AnimatedOpacity(
           opacity: _showHome ? 1.0 : 0.0,
           duration: _transitionDuration,
@@ -180,11 +220,9 @@ class _BaylenLaunchControllerState extends State<BaylenLaunchController> {
           child: MainShell(initialIndex: _initialTab),
         ),
 
-        // 2. Mandatory Location Permission Flow
         if (_showLocationPermission)
           LocationPermissionScreen(onLocationReady: _proceedAfterLocation),
 
-        // 3. Promotional Launch Experience / Onboarding
         if (_showLaunchExperience)
           LaunchExperience(
             content: _launchContent,
@@ -192,7 +230,6 @@ class _BaylenLaunchControllerState extends State<BaylenLaunchController> {
             onAction: _handleLaunchAction,
           ),
 
-        // 4. Initial Splash Screen
         if (!_splashDone)
           IgnorePointer(
             ignoring: _showHome || _showLocationPermission,

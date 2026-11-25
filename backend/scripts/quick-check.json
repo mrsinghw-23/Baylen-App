@@ -1,0 +1,11 @@
+{
+  "ok": true,
+  "jobs": [
+    "homeAccept",
+    "homeReject",
+    "productPrepaid",
+    "productCod",
+    "productConcur",
+    "productExpire"
+  ]
+}

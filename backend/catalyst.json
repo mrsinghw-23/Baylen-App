@@ -4,7 +4,11 @@
       "baylen-api"
     ],
     "ignore": [],
-    "source": "functions"
+    "source": "functions",
+    "scripts": {
+      "predeploy": "node ../scripts/ensure-whatsapp-otp-env.js --sync",
+      "postdeploy": "node ../scripts/ensure-whatsapp-otp-env.js --verify-live"
+    }
   },
   "client": {
     "source": "client"

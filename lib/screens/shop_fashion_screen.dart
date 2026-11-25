@@ -204,7 +204,8 @@ class _ShopFashionScreenState extends State<ShopFashionScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
+    return ShopThemeScope(
+      child: Scaffold(
       backgroundColor: const Color(0xFFF6F7F9),
       body: Column(
         children: [
@@ -335,6 +336,7 @@ class _ShopFashionScreenState extends State<ShopFashionScreen> {
           ),
         ],
       ),
+    ),
     );
   }
 }

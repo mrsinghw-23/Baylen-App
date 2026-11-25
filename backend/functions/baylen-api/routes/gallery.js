@@ -1,5 +1,17 @@
 const { asId, optionalText, rowOf, rowsOf, num, sendOk, sqlString } = require("../lib/http");
 
+function requireAdmin(req) {
+  const expected = process.env.ADMIN_API_KEY;
+  const crypto = require("crypto");
+  const a = Buffer.from(String(req.headers["x-baylen-admin-key"] || ""));
+  const b = Buffer.from(String(expected || ""));
+  if (!expected || a.length !== b.length || !crypto.timingSafeEqual(a, b)) {
+    const error = new Error("Admin authorization required");
+    error.status = 403;
+    throw error;
+  }
+}
+
 function currentMonthYear() {
   const date = new Date();
   const months = [
@@ -108,6 +120,7 @@ function galleryRoutes(app) {
   // Admin / Backend: Add or Update Gallery Item with Folder path metadata
   app.post("/v1/gallery", async (req, res, next) => {
     try {
+      requireAdmin(req);
       const {
         title,
         subtitle,

@@ -85,9 +85,10 @@ void main() {
   test('optionLabel does not append numeric duplicate values', () {
     expect(variant(id: 'a').optionLabel, '30ml');
     expect(
-      variant(id: 'b', name: 'Red', value: 'Nude').optionLabel,
+      variant(id: 'b', name: 'Shade', value: 'Nude').optionLabel,
       'Nude',
     );
+    expect(variant(id: 'c', name: 'Red', value: 'Red').optionLabel, 'Red');
   });
 
   test('preferredCatalogVariant skips out-of-stock options', () {

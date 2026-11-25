@@ -256,6 +256,7 @@ class SalonService {
     this.packageId = '',
     this.genders = const [],
     this.prices = const [],
+    this.isAtHome = false,
   });
 
   final String id;
@@ -270,6 +271,7 @@ class SalonService {
   final String packageId;
   final List<String> genders;
   final List<SalonServicePrice> prices;
+  final bool isAtHome;
 
   factory SalonService.fromJson(Map<String, dynamic> json) {
     final rawPrices = json['prices'];
@@ -295,6 +297,7 @@ class SalonService {
           ? rawGenders.map((item) => item.toString()).toList()
           : prices.map((item) => item.gender).toList(),
       prices: prices,
+      isAtHome: json['is_at_home'] == true || json['is_at_home'] == 'true',
     );
   }
 

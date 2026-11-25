@@ -119,7 +119,10 @@ class _ProductMediaGalleryState extends State<ProductMediaGallery> {
       }
       await controller.setLooping(true);
       await controller.setVolume(0);
-      final reduceMotion = MediaQuery.disableAnimationsOf(this.context);
+      if (!mounted || _videoIndex != index) {
+        return;
+      }
+      final reduceMotion = MediaQuery.disableAnimationsOf(context);
       if (!reduceMotion) {
         await controller.play();
       }
@@ -237,6 +240,7 @@ class _ProductMediaGalleryState extends State<ProductMediaGallery> {
           width: double.infinity,
           child: Stack(
             fit: StackFit.expand,
+            clipBehavior: Clip.hardEdge,
             children: [
               ColoredBox(
                 color: const Color(0xFFF3F7FC),
@@ -253,6 +257,7 @@ class _ProductMediaGalleryState extends State<ProductMediaGallery> {
                           controller: _videoIndex == index ? _video : null,
                           ready: _videoIndex == index && _videoReady,
                           failed: _videoIndex == index && _videoFailed,
+                          active: _index == index,
                         ),
                       );
                     }
@@ -395,11 +400,13 @@ class _VideoSlide extends StatelessWidget {
     required this.controller,
     required this.ready,
     required this.failed,
+    required this.active,
   });
 
   final VideoPlayerController? controller;
   final bool ready;
   final bool failed;
+  final bool active;
 
   @override
   Widget build(BuildContext context) {
@@ -412,9 +419,17 @@ class _VideoSlide extends StatelessWidget {
       );
     }
     if (!ready || controller == null || !controller!.value.isInitialized) {
-      return const ColoredBox(
-        color: Color(0xFF10233F),
-        child: Center(child: CircularProgressIndicator()),
+      return ColoredBox(
+        color: const Color(0xFF10233F),
+        child: Center(
+          child: active
+              ? const CircularProgressIndicator()
+              : const Icon(
+                  Icons.play_circle_fill,
+                  color: Colors.white70,
+                  size: 56,
+                ),
+        ),
       );
     }
     final size = controller!.value.size;

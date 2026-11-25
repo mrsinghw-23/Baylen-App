@@ -7,6 +7,8 @@ import '../auth/auth_service.dart';
 import '../models/salon.dart';
 import '../widgets/home/_home_constants.dart';
 import 'bookings_screen.dart';
+import 'payment_checkout_screen.dart';
+import '../models/account.dart';
 import 'login_screen.dart';
 
 class SalonBookScreen extends StatefulWidget {
@@ -39,6 +41,8 @@ class _SalonBookScreenState extends State<SalonBookScreen> {
   bool _loading = true;
   bool _booking = false;
   bool _confirmed = false;
+  bool _paymentReceived = false;
+  bool _awaitingPayment = false;
   bool _skipCategoryStep = false;
   SalonAppointment? _appointment;
   bool _whatsappSent = false;
@@ -413,6 +417,17 @@ class _SalonBookScreenState extends State<SalonBookScreen> {
     setState(() => _slot = slot);
   }
 
+  Future<PaymentRecord?> _payAppointment(String appointmentId) {
+    return Navigator.of(context).push<PaymentRecord>(
+      MaterialPageRoute(
+        builder: (_) => PaymentCheckoutScreen(
+          referenceType: 'APPOINTMENT',
+          referenceId: appointmentId,
+        ),
+      ),
+    );
+  }
+
   Future<void> _confirm() async {
     final service = _service;
     final staff = _staffMember;
@@ -429,24 +444,44 @@ class _SalonBookScreenState extends State<SalonBookScreen> {
     }
     setState(() => _booking = true);
     try {
-      final result = await AuthService.instance.api.bookAppointment(
-        slotId: slot.id.isNotEmpty ? slot.id : null,
-        serviceId: service.id,
-        outletId: widget.outlet.id,
-        packageId: package.id,
-        staffId: staff.id,
-        gender: _gender,
-        appointmentDate: _slotDate,
-        startTime: slot.startTime,
-      );
-      await AuthService.instance.recoverAccount();
+      var appointment = _appointment;
+      if (appointment == null) {
+        final result = await AuthService.instance.api.bookAppointment(
+          slotId: slot.id.isNotEmpty ? slot.id : null,
+          serviceId: service.id,
+          outletId: widget.outlet.id,
+          packageId: package.id,
+          staffId: staff.id,
+          gender: _gender,
+          appointmentDate: _slotDate,
+          startTime: slot.startTime,
+        );
+        appointment = result.appointment;
+        _whatsappSent = false;
+      }
       if (!mounted) return;
       setState(() {
         _booking = false;
-        _confirmed = true;
-        _appointment = result.appointment;
-        _whatsappSent = result.whatsappSent;
+        _appointment = appointment;
+        _awaitingPayment = true;
       });
+      final paid = await _payAppointment(appointment.id);
+      if (!mounted) return;
+      final received = paid?.isConfirmed == true;
+      setState(() {
+        _paymentReceived = received;
+        _confirmed = received;
+        _awaitingPayment = !received;
+      });
+      if (!received) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'Payment was not completed. Your time is held. Pay to confirm the booking.',
+            ),
+          ),
+        );
+      }
     } catch (error) {
       if (!mounted) return;
       setState(() => _booking = false);
@@ -502,7 +537,7 @@ class _SalonBookScreenState extends State<SalonBookScreen> {
   }
 
   Widget? _buildBottomBar() {
-    if (_confirmed || _loading && _step == 1 && _services.isEmpty) {
+    if (_confirmed || _awaitingPayment || _loading && _step == 1 && _services.isEmpty) {
       return null;
     }
     switch (_step) {
@@ -520,7 +555,7 @@ class _SalonBookScreenState extends State<SalonBookScreen> {
         );
       case 4:
         return _SalonBottomBar(
-          label: 'Confirm Booking',
+          label: 'Pay & Confirm',
           enabled: !_booking,
           loading: _booking,
           onPressed: _confirm,
@@ -564,16 +599,16 @@ class _SalonBookScreenState extends State<SalonBookScreen> {
   @override
   Widget build(BuildContext context) {
     return PopScope(
-      canPop: _confirmed || (_skipCategoryStep && _step == 1) || _step == 0,
+      canPop: _confirmed || _awaitingPayment || (_skipCategoryStep && _step == 1) || _step == 0,
       onPopInvokedWithResult: (didPop, _) {
         if (!didPop) _onWillPop();
       },
       child: Scaffold(
-        appBar: _confirmed ? null : _buildAppBar(),
+        appBar: _confirmed || _awaitingPayment ? null : _buildAppBar(),
         bottomNavigationBar: _buildBottomBar(),
         body: Stack(
           children: [
-            if (_confirmed && _appointment != null)
+            if ((_confirmed || _awaitingPayment) && _appointment != null)
               _ConfirmationView(
                 outlet: widget.outlet,
                 package: _package,
@@ -585,7 +620,18 @@ class _SalonBookScreenState extends State<SalonBookScreen> {
                 amount: _appointment!.totalLabel,
                 bookingId: _appointment!.appointmentNumber,
                 whatsappSent: _whatsappSent,
-                bookingStatus: _appointment!.status,
+                paymentReceived:
+                    _paymentReceived || _appointment!.paymentStatus == 'PAID',
+                onPay: () async {
+                  final paid = await _payAppointment(_appointment!.id);
+                  if (!mounted || paid?.isConfirmed != true) return;
+                  setState(() {
+                    _paymentReceived = true;
+                    _confirmed = true;
+                    _awaitingPayment = false;
+                    _whatsappSent = false;
+                  });
+                },
                 onBookings: () {
                   Navigator.of(context).pushReplacement(
                     MaterialPageRoute<void>(
@@ -1664,7 +1710,8 @@ class _ConfirmationView extends StatelessWidget {
     required this.amount,
     required this.bookingId,
     required this.whatsappSent,
-    required this.bookingStatus,
+    required this.paymentReceived,
+    required this.onPay,
     required this.onBookings,
     required this.onHome,
   });
@@ -1679,7 +1726,8 @@ class _ConfirmationView extends StatelessWidget {
   final String amount;
   final String bookingId;
   final bool whatsappSent;
-  final String bookingStatus;
+  final bool paymentReceived;
+  final VoidCallback onPay;
   final VoidCallback onBookings;
   final VoidCallback onHome;
 
@@ -1706,15 +1754,15 @@ class _ConfirmationView extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 16),
-            const Text(
-              'Booking Confirmed!',
-              style: TextStyle(fontSize: 22, fontWeight: FontWeight.w800),
+            Text(
+              paymentReceived ? 'Booking Confirmed!' : 'Payment required',
+              style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w800),
             ),
             const SizedBox(height: 6),
             Text(
-              bookingStatus.toUpperCase() == 'CONFIRMED'
-                  ? 'Your booking is confirmed and saved under My Bookings.'
-                  : 'Your booking has been placed successfully.',
+              paymentReceived
+                  ? 'Your advance payment is received. The appointment is confirmed.'
+                  : 'Pay the booking amount to confirm this appointment. The time stays held until you pay.',
               style: const TextStyle(color: kHomeTextSecondary),
             ),
             const SizedBox(height: 20),
@@ -1773,9 +1821,13 @@ class _ConfirmationView extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Icon(
-                  whatsappSent ? Icons.mark_chat_read_outlined : Icons.info_outline,
+                  whatsappSent
+                      ? Icons.mark_chat_read_outlined
+                      : Icons.info_outline,
                   size: 18,
-                  color: whatsappSent ? const Color(0xFF25D366) : kHomeTextSecondary,
+                  color: whatsappSent
+                      ? const Color(0xFF25D366)
+                      : kHomeTextSecondary,
                 ),
                 const SizedBox(width: 8),
                 Expanded(
@@ -1783,7 +1835,10 @@ class _ConfirmationView extends StatelessWidget {
                     whatsappSent
                         ? 'WhatsApp confirmation sent to your registered mobile number.'
                         : 'Booking saved. WhatsApp confirmation will arrive once messaging is configured on your account mobile.',
-                    style: const TextStyle(color: kHomeTextSecondary, fontSize: 12),
+                    style: const TextStyle(
+                      color: kHomeTextSecondary,
+                      fontSize: 12,
+                    ),
                   ),
                 ),
               ],
@@ -1793,6 +1848,15 @@ class _ConfirmationView extends StatelessWidget {
               onPressed: onBookings,
               child: const Text('View My Bookings'),
             ),
+            const SizedBox(height: 8),
+            if (paymentReceived)
+              const Text('Payment received', textAlign: TextAlign.center)
+            else
+              OutlinedButton.icon(
+                onPressed: onPay,
+                icon: const Icon(Icons.payment),
+                label: const Text('Pay with Razorpay'),
+              ),
             const SizedBox(height: 8),
             OutlinedButton(onPressed: onHome, child: const Text('Go To Home')),
           ],

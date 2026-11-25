@@ -12,6 +12,14 @@ const {
   defaultSalonSeedPaths,
 } = require("../lib/salon-import-pipeline");
 const { sendBookingWhatsapp, getBookingWhatsappStatus, bookingMessage } = require("../lib/booking-notify");
+const {
+  sendOrderWhatsapp,
+  getOrderWhatsappStatus,
+  orderMessage,
+  notifyOrderWhatsapp,
+  recordOrderNotification,
+} = require("../lib/order-notify");
+const { rowOf } = require("../lib/http");
 
 function requireAdmin(req) {
   const crypto = require("crypto");
@@ -114,6 +122,93 @@ function salonImportRoutes(app) {
       }
       const result = await sendBookingWhatsapp(sample);
       sendOk(res, { config: status, result, sample_payload: sample });
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  app.post("/v1/admin/order/test-whatsapp", async (req, res, next) => {
+    try {
+      requireAdmin(req);
+      const mobile = String(req.body.mobile || "").trim();
+      if (!mobile) {
+        const error = new Error("mobile is required (10-digit Indian number)");
+        error.status = 400;
+        throw error;
+      }
+      const status = getOrderWhatsappStatus();
+      const sample = {
+        mobile,
+        name: String(req.body.name || "Baylen Customer").trim(),
+        orderNumber: String(req.body.order_number || "BAY-TEST-001").trim(),
+        total: String(req.body.total || "999").trim(),
+        paymentMethod: String(req.body.payment_method || "COD").trim(),
+        city: String(req.body.city || "Ranchi").trim(),
+        pincode: String(req.body.pincode || "834001").trim(),
+        eta: String(req.body.eta || "2-4 days").trim(),
+      };
+      if (req.body.preview_only === true || req.body.preview_only === "true") {
+        sendOk(res, {
+          config: status,
+          preview_message: orderMessage(sample),
+          sample_payload: sample,
+        });
+        return;
+      }
+      const result = await sendOrderWhatsapp(sample);
+      sendOk(res, { config: status, result, sample_payload: sample });
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  app.post("/v1/admin/order/resend-whatsapp", async (req, res, next) => {
+    try {
+      requireAdmin(req);
+      const orderNumber = String(req.body.order_number || "").trim();
+      if (!orderNumber) {
+        const error = new Error("order_number is required");
+        error.status = 400;
+        throw error;
+      }
+      const zcql = req.catalystApp.zcql();
+      const order = rowOf(
+        await zcql.executeZCQLQuery(
+          "SELECT ROWID, user_id, order_number, grand_total, payment_method, shipping_name, shipping_phone, shipping_city, shipping_postal_code FROM Orders WHERE order_number = '" +
+            orderNumber.replace(/'/g, "") +
+            "'"
+        ),
+        "Orders"
+      );
+      if (!order) {
+        const error = new Error("Order not found");
+        error.status = 404;
+        throw error;
+      }
+      const user = {
+        user_id: String(order.user_id),
+        first_name: order.shipping_name || "Baylen",
+        last_name: "Customer",
+        mobile: order.shipping_phone || "",
+      };
+      const result = await notifyOrderWhatsapp(req, user, order);
+      await recordOrderNotification(
+        req,
+        user.user_id,
+        order.ROWID,
+        result,
+        "Order confirmation",
+        orderMessage({
+          name: order.shipping_name,
+          orderNumber: order.order_number,
+          total: order.grand_total,
+          paymentMethod: order.payment_method,
+          city: order.shipping_city,
+          pincode: order.shipping_postal_code,
+          eta: "",
+        }).slice(0, 500)
+      );
+      sendOk(res, { order_number: orderNumber, result });
     } catch (error) {
       next(error);
     }

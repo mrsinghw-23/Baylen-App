@@ -15,15 +15,6 @@ class BeautyServices extends StatelessWidget {
   final VoidCallback onViewAll;
   final void Function(Map<String, dynamic>) onCategoryTap;
 
-  static const _defaultCategories = [
-    {'name': 'Hair', 'icon_key': 'hair'},
-    {'name': 'Skin', 'icon_key': 'skin'},
-    {'name': 'Nail', 'icon_key': 'nail'},
-    {'name': 'Makeup', 'icon_key': 'makeup'},
-    {'name': 'Spa', 'icon_key': 'spa'},
-    {'name': 'More', 'icon_key': 'more'},
-  ];
-
   static IconData _iconFor(String key) {
     switch (key) {
       case 'hair':
@@ -43,9 +34,6 @@ class BeautyServices extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final items = loading
-        ? <Map<String, dynamic>>[]
-        : (categories.isNotEmpty ? categories : _defaultCategories);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -61,12 +49,19 @@ class BeautyServices extends StatelessWidget {
           height: 90,
           child: loading
               ? _SkeletonRow()
+              : categories.isEmpty
+              ? const Center(
+                  child: Text(
+                    'No beauty categories available.',
+                    style: TextStyle(color: kHomeTextSecondary, fontSize: 13),
+                  ),
+                )
               : ListView.builder(
                   scrollDirection: Axis.horizontal,
                   padding: const EdgeInsets.symmetric(horizontal: 16),
-                  itemCount: items.length,
+                  itemCount: categories.length,
                   itemBuilder: (context, i) {
-                    final cat = items[i];
+                    final cat = categories[i];
                     final name = cat['name']?.toString() ?? '';
                     final iconKey = cat['icon_key']?.toString() ?? 'more';
                     final imgUrl = cat['image_url']?.toString() ?? '';

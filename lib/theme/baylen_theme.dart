@@ -75,7 +75,8 @@ ThemeData baylenTheme() {
       style: FilledButton.styleFrom(
         backgroundColor: primary,
         foregroundColor: Colors.white,
-        minimumSize: const Size.fromHeight(48),
+        minimumSize: const Size(64, 48),
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
         textStyle: const TextStyle(
           fontWeight: FontWeight.w800,
@@ -87,7 +88,8 @@ ThemeData baylenTheme() {
       style: OutlinedButton.styleFrom(
         foregroundColor: const Color(0xFFF8F6FA),
         side: const BorderSide(color: primary),
-        minimumSize: const Size.fromHeight(48),
+        minimumSize: const Size(64, 48),
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
       ),
     ),

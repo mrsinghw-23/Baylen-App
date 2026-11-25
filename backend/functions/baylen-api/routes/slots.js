@@ -150,13 +150,26 @@ function slotRoutes(app) {
 
   app.post("/v1/slots/lock", async (req, res, next) => {
     try {
-      requireUser(req);
+      const user = requireUser(req);
       const slotId = asId(req.body.slot_id, "slot_id");
-      const appointmentId = req.body.appointment_id
-        ? asId(req.body.appointment_id, "appointment_id")
-        : null;
+      const appointmentId = asId(req.body.appointment_id, "appointment_id");
 
       const zcql = req.catalystApp.zcql();
+      const owned = rowOf(
+        await zcql.executeZCQLQuery(
+          "SELECT ROWID FROM Appointments WHERE ROWID = " +
+            appointmentId +
+            " AND user_id = " +
+            user.user_id
+        ),
+        "Appointments"
+      );
+      if (!owned) {
+        const error = new Error("Appointment not found");
+        error.status = 404;
+        throw error;
+      }
+
       const query =
         "SELECT ROWID, status, appointment_id FROM Appointment_Slots WHERE ROWID = " +
         slotId;

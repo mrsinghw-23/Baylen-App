@@ -179,22 +179,22 @@ class _LocationPermissionScreenState extends State<LocationPermissionScreen>
   @override
   Widget build(BuildContext context) {
     final title = _isGpsDisabled
-        ? 'Turn On Device Location'
+        ? 'Turn on your location'
         : _isPermissionDeniedForever
-        ? 'Enable Location in Settings'
-        : 'Find Salons & Services\nNear You';
+        ? 'Location permission is blocked'
+        : 'Turn on your location';
 
     final description = _isGpsDisabled
-        ? 'Your phone\'s GPS / Location service is turned off. Please turn on location services so Baylen can find salons near you.'
+        ? 'Baylen needs your current location to show nearby salons, home services, quick delivery, and accurate availability.'
         : _isPermissionDeniedForever
-        ? 'Location permission was denied. Please open Settings and allow location access to discover nearby outlets.'
-        : 'To show nearby Baylen luxury salons, real-time technician availability, and doorstep beauty services, please grant location access.';
+        ? 'Location access is blocked in system settings. Open Settings and allow location for Baylen to continue.'
+        : 'Baylen needs your current location to show nearby salons, home services, quick delivery, and accurate availability.';
 
     final buttonLabel = _isGpsDisabled
-        ? 'Turn On Location (GPS)'
+        ? 'Turn On Location'
         : _isPermissionDeniedForever
-        ? 'Open App Settings'
-        : 'Enable Location Access';
+        ? 'Open Settings'
+        : 'Allow Location';
 
     return Scaffold(
       backgroundColor: kHomeCanvas,

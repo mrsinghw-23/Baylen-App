@@ -48,6 +48,7 @@ function mapBrand(row) {
   return {
     type: "brand",
     id: String(row.ROWID),
+    slug: row.slug || "",
     name: row.name || "",
     description: row.description || "",
     logo_url: row.logo_url || "",

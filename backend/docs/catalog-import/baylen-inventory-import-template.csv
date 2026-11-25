@@ -1,0 +1,5 @@
+warehouse_code,sku,stock,reorder_level,reorder_quantity,safety_stock
+WH-RNC-001,MIN-NIA10-30ML,25,5,20,3
+WH-RNC-002,MIN-NIA10-30ML,15,5,20,3
+WH-RNC-003,MIN-NIA10-30ML,30,8,25,5
+WH-RNC-001,LOR-EOHS-100ML,10,3,10,2

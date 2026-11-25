@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../models/salon.dart';
 import '../services/maps_service.dart';
 import '../widgets/home/_home_constants.dart';
+import '../widgets/salon_image.dart';
 import 'salon_book_screen.dart';
 
 class OutletDetailScreen extends StatelessWidget {
@@ -68,12 +69,7 @@ class _OutletHero extends StatelessWidget {
                       ),
                     ),
                   )
-                : Image.network(
-                    outlet.imageUrl,
-                    fit: BoxFit.cover,
-                    errorBuilder: (_, _, _) =>
-                        const ColoredBox(color: Color(0xFF21101A)),
-                  ),
+                : SalonImage(imageUrl: outlet.imageUrl),
             DecoratedBox(
               decoration: BoxDecoration(
                 gradient: LinearGradient(

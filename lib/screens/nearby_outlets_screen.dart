@@ -3,7 +3,10 @@ import 'package:flutter/material.dart';
 import '../api/catalyst_api.dart';
 import '../models/salon.dart';
 import '../services/location_service.dart';
+import '../utils/location_status.dart';
 import '../widgets/home/_home_constants.dart';
+import '../widgets/location/required_location_panel.dart';
+import '../widgets/salon_image.dart';
 import 'outlet_detail_screen.dart';
 
 enum OutletSortMode { nearest, rating, category, availability, distance }
@@ -39,11 +42,20 @@ class _NearbyOutletsScreenState extends State<NearbyOutletsScreen> {
       _error = null;
     });
     try {
-      await LocationService.instance.fetchCurrentLocation();
+      await LocationService.instance.refreshPermissionStatus();
+      await LocationService.instance.fetchCurrentLocation(force: true);
       final location = LocationService.instance.currentLocation.value;
+      if (location == null) {
+        throw Exception(
+          deviceLocationStatusMessage(
+            LocationService.instance.permissionStatus.value,
+          ),
+        );
+      }
       final outlets = await _api.nearbyOutlets(
-        lat: location?.latitude,
-        lng: location?.longitude,
+        lat: location.latitude,
+        lng: location.longitude,
+        city: location.city,
       );
       if (!mounted) return;
       setState(() {
@@ -126,16 +138,7 @@ class _NearbyOutletsScreenState extends State<NearbyOutletsScreen> {
                 ),
               )
             else if (_error != null && _visibleOutlets.isEmpty)
-              _StatePanel(
-                icon: Icons.location_off_outlined,
-                title: 'Location-based salons unavailable',
-                message: _error!,
-                action: FilledButton.icon(
-                  onPressed: _load,
-                  icon: const Icon(Icons.refresh),
-                  label: const Text('Retry'),
-                ),
-              )
+              RequiredLocationPanel(onLocationReady: _load)
             else if (_visibleOutlets.isEmpty)
               const _StatePanel(
                 icon: Icons.store_mall_directory_outlined,
@@ -185,7 +188,7 @@ class _LocationBanner extends StatelessWidget {
                 Expanded(
                   child: Text(
                     location == null
-                        ? 'Using your current GPS location'
+                        ? 'Location not available'
                         : '${location.city} - ${location.area}',
                     style: const TextStyle(
                       color: Colors.white,
@@ -294,14 +297,11 @@ class _OutletListCard extends StatelessWidget {
                 child: SizedBox(
                   width: 92,
                   height: 92,
-                  child: outlet.imageUrl.isEmpty
-                      ? const ColoredBox(color: Color(0xFF21101A))
-                      : Image.network(
-                          outlet.imageUrl,
-                          fit: BoxFit.cover,
-                          errorBuilder: (_, _, _) =>
-                              const ColoredBox(color: Color(0xFF21101A)),
-                        ),
+                  child: SalonImage(
+                    imageUrl: outlet.imageUrl.isNotEmpty
+                        ? outlet.imageUrl
+                        : 'assets/icon/logo.png',
+                  ),
                 ),
               ),
               const SizedBox(width: 12),

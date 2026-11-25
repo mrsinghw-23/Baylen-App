@@ -14,20 +14,23 @@ class SalonImage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final child = imageUrl.isEmpty
-        ? const ColoredBox(color: Color(0xFF21101A))
-        : imageUrl.startsWith('assets/')
-        ? Image.asset(
-            imageUrl,
-            fit: fit,
-            errorBuilder: (_, _, _) => const ColoredBox(color: Color(0xFF21101A)),
-          )
-        : Image.network(
-            imageUrl,
-            fit: fit,
-            errorBuilder: (_, _, _) => const ColoredBox(color: Color(0xFF21101A)),
-          );
-    if (borderRadius == null) return child;
-    return ClipRRect(borderRadius: borderRadius!, child: child);
+    final Widget image;
+    if (imageUrl.isEmpty) {
+      image = const ColoredBox(color: Color(0xFF21101A));
+    } else if (imageUrl.startsWith('assets/')) {
+      image = Image.asset(
+        imageUrl,
+        fit: fit,
+        errorBuilder: (_, _, _) => const ColoredBox(color: Color(0xFF21101A)),
+      );
+    } else {
+      image = Image.network(
+        imageUrl,
+        fit: fit,
+        errorBuilder: (_, _, _) => const ColoredBox(color: Color(0xFF21101A)),
+      );
+    }
+    if (borderRadius == null) return image;
+    return ClipRRect(borderRadius: borderRadius!, child: image);
   }
 }

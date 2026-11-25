@@ -4,7 +4,7 @@ const DEFAULT_BOOKS_API_BASE = process.env.ZOHO_BOOKS_API_BASE || "https://www.z
 const DEFAULT_ACCOUNTS_URL = "https://accounts.zoho.in/oauth/v2/token";
 
 function booksConfig() {
-  const enabled = String(process.env.ZOHO_BOOKS_ENABLED || "true")
+  const enabled = String(process.env.ZOHO_BOOKS_ENABLED || "false")
     .trim()
     .toLowerCase();
   return {

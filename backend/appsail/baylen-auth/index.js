@@ -495,6 +495,7 @@ app.put("/api/user/profile", async (req, res, next) => {
   }
 });
 
+// 🚀 ENDPOINT: Fetch products/services live from Zoho Books
 // ðŸš€ ENDPOINT: Fetch products/services live from Zoho Books
 app.get('/api/shop/books-image', async (req, res) => {
   try {

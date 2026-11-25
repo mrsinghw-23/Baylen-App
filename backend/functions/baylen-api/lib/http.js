@@ -69,16 +69,49 @@ function num(value) {
   return Number.isFinite(n) ? n : 0;
 }
 
+function isTruthy(value) {
+  return value === true || value === "true" || value === 1 || value === "1";
+}
+
+function insertedRowId(inserted) {
+  if (!inserted) {
+    return "";
+  }
+  if (Array.isArray(inserted)) {
+    return insertedRowId(inserted[0]);
+  }
+  if (inserted.ROWID || inserted.rowid) {
+    return String(inserted.ROWID || inserted.rowid);
+  }
+  const nested = Object.values(inserted).find(
+    (value) => value && typeof value === "object" && (value.ROWID || value.rowid)
+  );
+  return nested ? String(nested.ROWID || nested.rowid) : "";
+}
+
 function sendOk(res, data) {
   res.status(200).json({ ok: true, data });
 }
 
 function sendError(res, error) {
   const status = error.status || 500;
-  res.status(status).json({
+  if (status >= 500) {
+    console.error("[api]", error);
+  }
+  const body = {
     ok: false,
-    error: error.message || "Unexpected error",
-  });
+    error:
+      status >= 500
+        ? "Something went wrong. Please try again."
+        : error.message || "Unexpected error",
+  };
+  if (error.code) {
+    body.code = error.code;
+  }
+  if (error.details && status < 500) {
+    body.details = error.details;
+  }
+  res.status(status).json(body);
 }
 
 module.exports = {
@@ -90,6 +123,8 @@ module.exports = {
   rowOf,
   rowsOf,
   num,
+  isTruthy,
+  insertedRowId,
   sendOk,
   sendError,
 };

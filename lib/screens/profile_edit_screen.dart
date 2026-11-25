@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../auth/auth_service.dart';
 import '../models/account.dart';
-import 'login_screen.dart';
+import '../screens/auth/role_picker_screen.dart';
 
 class ProfileEditScreen extends StatefulWidget {
   const ProfileEditScreen({super.key});
@@ -47,12 +47,28 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
       setState(() => _loading = false);
       return;
     }
-    setState(() {
-      _loading = true;
-      _error = null;
-    });
+    final cachedProfile = AuthService.instance.bootstrap.value?.profile;
+    if (cachedProfile != null) {
+      _profile = cachedProfile;
+      _fullName.text = cachedProfile.fullName;
+      _mobile.text = cachedProfile.mobile;
+      _email.text = cachedProfile.email;
+      _gender.text = cachedProfile.gender;
+      _dateOfBirth.text = cachedProfile.dateOfBirth;
+      _profilePhotoUrl.text = cachedProfile.profilePhotoUrl;
+      setState(() {
+        _loading = false;
+        _error = null;
+      });
+    } else {
+      setState(() {
+        _loading = true;
+        _error = null;
+      });
+    }
     try {
       final profile = await AuthService.instance.api.profile();
+      AuthService.instance.noteLiveDataReceived();
       if (!mounted) return;
       _profile = profile;
       _fullName.text = profile.fullName;
@@ -65,7 +81,9 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
     } catch (error) {
       if (!mounted) return;
       setState(() {
-        _error = error.toString();
+        if (_profile == null) {
+          _error = error.toString();
+        }
         _loading = false;
       });
     }
@@ -314,7 +332,7 @@ class _SignInRequired extends StatelessWidget {
             FilledButton(
               onPressed: () async {
                 await Navigator.of(context).push(
-                  MaterialPageRoute<bool>(builder: (_) => const LoginScreen()),
+                  MaterialPageRoute<void>(builder: (_) => const RolePickerScreen()),
                 );
                 onSignedIn();
               },

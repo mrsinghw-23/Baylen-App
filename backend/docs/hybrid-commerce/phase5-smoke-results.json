@@ -1,0 +1,228 @@
+{
+  "inventoryBefore": [
+    {
+      "code": "WH-BAN01",
+      "sku": "MIN-NIA10-30ML",
+      "on_hand": 80,
+      "reserved": 0,
+      "committed": 0,
+      "available": 80
+    },
+    {
+      "code": "WH-RNC-001",
+      "sku": "MIN-NIA10-30ML",
+      "on_hand": 10,
+      "reserved": 3,
+      "committed": 0,
+      "available": 7
+    }
+  ],
+  "inventoryAfter": [
+    {
+      "code": "WH-BAN01",
+      "sku": "MIN-NIA10-30ML",
+      "on_hand": 80,
+      "reserved": 0,
+      "committed": 0,
+      "available": 80
+    },
+    {
+      "code": "WH-RNC-001",
+      "sku": "MIN-NIA10-30ML",
+      "on_hand": 10,
+      "reserved": 3,
+      "committed": 0,
+      "available": 7
+    }
+  ],
+  "ordersBefore": 3,
+  "ordersAfter": 3,
+  "results": [
+    {
+      "phase": "health",
+      "check": "GET /health",
+      "pass": true,
+      "detail": "status=200"
+    },
+    {
+      "phase": "5.5",
+      "check": "admin inventory list",
+      "pass": true,
+      "detail": "rows=4"
+    },
+    {
+      "phase": "5.5",
+      "check": "duplicate scan",
+      "pass": true,
+      "detail": "duplicate_groups=0"
+    },
+    {
+      "phase": "5.5",
+      "check": "warehouse isolation WH-RNC-001",
+      "pass": true,
+      "detail": "{\"code\":\"WH-RNC-001\",\"sku\":\"MIN-NIA10-30ML\",\"on_hand\":10,\"reserved\":3,\"committed\":0,\"available\":7}"
+    },
+    {
+      "phase": "5.5",
+      "check": "warehouse isolation WH-BAN01",
+      "pass": true,
+      "detail": "{\"code\":\"WH-BAN01\",\"sku\":\"MIN-NIA10-30ML\",\"on_hand\":80,\"reserved\":0,\"committed\":0,\"available\":80}"
+    },
+    {
+      "phase": "5.6",
+      "check": "import job completes",
+      "pass": true,
+      "detail": "job=36851000000393405 status=COMPLETED"
+    },
+    {
+      "phase": "5.6",
+      "check": "job status API",
+      "pass": true,
+      "detail": "status=COMPLETED"
+    },
+    {
+      "phase": "5.6",
+      "check": "retry safe (no double stock)",
+      "pass": true,
+      "detail": "status=409 (409 expected when job already COMPLETED)"
+    },
+    {
+      "phase": "5.6",
+      "check": "stock unchanged after retry",
+      "pass": true,
+      "detail": "stock=42"
+    },
+    {
+      "phase": "5.7",
+      "check": "low-stock list",
+      "pass": true,
+      "detail": "status=200"
+    },
+    {
+      "phase": "5.7",
+      "check": "low-stock summary",
+      "pass": true,
+      "detail": "{\"total_rows\":4,\"in_stock\":4,\"low_stock\":0,\"critical\":0,\"out_of_stock\":0}"
+    },
+    {
+      "phase": "5.7",
+      "check": "warehouse filter",
+      "pass": true,
+      "detail": "status=200"
+    },
+    {
+      "phase": "5.7",
+      "check": "status filter",
+      "pass": true,
+      "detail": "status=200"
+    },
+    {
+      "phase": "5.7",
+      "check": "alert deduplication",
+      "pass": true,
+      "detail": "t1=0 t2=0"
+    },
+    {
+      "phase": "5.8",
+      "check": "catalog products location-aware",
+      "pass": true,
+      "detail": "count=3"
+    },
+    {
+      "phase": "5.8",
+      "check": "catalog availability fields",
+      "pass": true,
+      "detail": "quick=true standard=true"
+    },
+    {
+      "phase": "5.8",
+      "check": "no reservation during catalog",
+      "pass": true,
+      "detail": "reserved still 3"
+    },
+    {
+      "phase": "5.8",
+      "check": "catalog 10 products",
+      "pass": true,
+      "detail": "174ms"
+    },
+    {
+      "phase": "5.8",
+      "check": "catalog 50 products",
+      "pass": true,
+      "detail": "198ms"
+    },
+    {
+      "phase": "5.9",
+      "check": "list regions",
+      "pass": true,
+      "detail": "status=200"
+    },
+    {
+      "phase": "5.9",
+      "check": "upsert region",
+      "pass": true,
+      "detail": "id=36851000000375770"
+    },
+    {
+      "phase": "5.9",
+      "check": "invalid pincode rejected",
+      "pass": true,
+      "detail": "status=400"
+    },
+    {
+      "phase": "5.9",
+      "check": "deactivate region",
+      "pass": true,
+      "detail": "status=200"
+    },
+    {
+      "phase": "5.9",
+      "check": "checkout pincode regression",
+      "pass": true,
+      "detail": "status=200"
+    },
+    {
+      "phase": "Quick",
+      "check": "WH-RNC-001 + ETA",
+      "pass": true,
+      "detail": "WH-RNC-001 eta=15–20 minutes"
+    },
+    {
+      "phase": "Standard",
+      "check": "WH-BAN01 + ETA",
+      "pass": true,
+      "detail": "36851000000293759 eta=2–3 days"
+    },
+    {
+      "phase": "5.10",
+      "check": "flag OFF Standard central",
+      "pass": true,
+      "detail": "warehouse=36851000000293759"
+    },
+    {
+      "phase": "Split",
+      "check": "split available",
+      "pass": true,
+      "detail": "{\"split_available\":true,\"qc_group\":\"WH-RNC-001\",\"std_group\":1}"
+    },
+    {
+      "phase": "data",
+      "check": "WH-RNC-001 inventory",
+      "pass": true,
+      "detail": "{\"code\":\"WH-RNC-001\",\"sku\":\"MIN-NIA10-30ML\",\"on_hand\":10,\"reserved\":3,\"committed\":0,\"available\":7}"
+    },
+    {
+      "phase": "data",
+      "check": "WH-BAN01 inventory",
+      "pass": true,
+      "detail": "{\"code\":\"WH-BAN01\",\"sku\":\"MIN-NIA10-30ML\",\"on_hand\":80,\"reserved\":0,\"committed\":0,\"available\":80}"
+    },
+    {
+      "phase": "data",
+      "check": "orders count",
+      "pass": true,
+      "detail": "3 -> 3"
+    }
+  ]
+}

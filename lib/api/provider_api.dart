@@ -117,6 +117,7 @@ class ProviderApi {
     required double longitude,
     double? heading,
     double? speed,
+    double? accuracy,
     String? status,
   }) async {
     final data = await _post('/v1/jobs/location', {
@@ -124,12 +125,41 @@ class ProviderApi {
       'provider_id': providerId.trim(),
       'latitude': latitude,
       'longitude': longitude,
-      'heading': ?heading,
-      'speed': ?speed,
+      if (heading != null) 'heading': heading,
+      if (speed != null) 'speed': speed,
+      if (accuracy != null) 'accuracy': accuracy,
       if (status != null && status.isNotEmpty) 'status': status,
     });
 
     return data['recorded'] == true;
+  }
+
+  Future<void> verifyArrivalOtp({
+    required String jobId,
+    required String providerId,
+    required String otp,
+  }) async {
+    await _post('/v1/jobs/verify-otp', {
+      'job_id': jobId.trim(),
+      'provider_id': providerId.trim(),
+      'otp': otp.trim(),
+    });
+  }
+
+  Future<void> requestExtraService({
+    required String jobId,
+    required String providerId,
+    required String name,
+    required double price,
+    String? serviceId,
+  }) async {
+    await _post('/v1/jobs/extra-services', {
+      'job_id': jobId.trim(),
+      'provider_id': providerId.trim(),
+      'name': name.trim(),
+      'price': price,
+      if (serviceId != null && serviceId.isNotEmpty) 'service_id': serviceId,
+    });
   }
 
   Future<JobProofRecord> submitJobProof({

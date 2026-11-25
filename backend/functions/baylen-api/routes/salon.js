@@ -1,10 +1,7 @@
 const { asId, asText, optionalText, rowOf, rowsOf, num, isTruthy, insertedRowId, sendOk } = require("../lib/http");
 const { requireUser } = require("../lib/session");
 const {
-  sendBookingWhatsapp,
-  recordBookingNotification,
-  resolveBookingMobile,
-  bookingMessage,
+  notifyBookingWhatsapp,
 } = require("../lib/booking-notify");
 const engine = require("../lib/salon-engine");
 
@@ -219,50 +216,7 @@ function fail(message, status) {
 }
 
 async function notifyBooking(req, user, appointment, details) {
-  const status = String(appointment.status || details.status || "CONFIRMED").toUpperCase();
-  if (status !== "CONFIRMED") {
-    return { status: "SKIPPED", reason: "Booking is not confirmed" };
-  }
-
-  const mobile = await resolveBookingMobile(req, user);
-  const payload = {
-    name: [user.first_name, user.last_name].filter(Boolean).join(" ") || "there",
-    mobile,
-    salon: details.salonName,
-    location: details.location,
-    packageName: details.packageName,
-    service: details.serviceName,
-    gender: details.gender,
-    expert: details.employeeName,
-    date: details.date,
-    time: details.startTime,
-    amount: String(details.price),
-    bookingId: appointment.appointment_number || String(appointment.ROWID),
-  };
-  let result = { status: "FAILED", reason: "Customer mobile is missing" };
-  if (mobile) {
-    try {
-      result = await sendBookingWhatsapp(payload);
-    } catch (error) {
-      result = { status: "FAILED", reason: error.message || "WhatsApp failed" };
-    }
-  }
-  await recordBookingNotification(
-    req,
-    user.user_id,
-    appointment.ROWID,
-    result,
-    "Booking confirmed",
-    bookingMessage(payload).slice(0, 500)
-  );
-  try {
-    await req.catalystApp.datastore().table("Appointments").updateRow({
-      ROWID: String(appointment.ROWID),
-      notification_status: result.status || "FAILED",
-    });
-    appointment.notification_status = result.status || "FAILED";
-  } catch (_) {}
-  return result;
+  return notifyBookingWhatsapp(req, user, appointment, details);
 }
 
 async function createDirectBooking(req, user) {
@@ -407,7 +361,7 @@ async function createDirectBooking(req, user) {
     appointment_date: appointmentDate,
     start_time: engine.formatClock(startMinutes),
     end_time: endTime,
-    status: "CONFIRMED",
+    status: "PENDING_PAYMENT",
     payment_status: "PENDING",
     currency: service.currency || "INR",
     subtotal: price,
@@ -462,7 +416,7 @@ async function createDirectBooking(req, user) {
     quantity: 1,
     unit_price: price,
     line_total: price,
-    status: "CONFIRMED",
+    status: "PENDING_PAYMENT",
   });
 
   if (slotId) {
@@ -487,17 +441,7 @@ async function createDirectBooking(req, user) {
     } catch (_) {}
   }
 
-  const notification = await notifyBooking(req, user, row, {
-    salonName: snapshot.salon_name_snapshot,
-    location: snapshot.location_snapshot,
-    packageName: snapshot.package_name_snapshot,
-    serviceName: snapshot.service_name_snapshot,
-    employeeName: snapshot.employee_name_snapshot,
-    gender: snapshot.gender_snapshot,
-    date: appointmentDate,
-    startTime: engine.formatClock(startMinutes),
-    price,
-  });
+  const notification = { status: "SKIPPED", reason: "Advance payment is required before confirmation" };
 
   return {
     appointment: mapAppointment(row, await loadAppointmentItems(zcql, asId(appointmentId, "appointment_id"))),
@@ -637,26 +581,17 @@ function salonRoutes(app) {
       const zcql = req.catalystApp.zcql();
       if (req.query.outlet_id) {
         const outletId = asId(req.query.outlet_id, "outlet_id");
-        await engine.loadActiveOutlet(zcql, outletId);
+        const atHomeOnly =
+          req.query.is_at_home === "true" ||
+          String(req.query.fulfillment_mode || "").trim().toUpperCase() === "AT_HOME";
         const packageId = req.query.package_id ? asId(req.query.package_id, "package_id") : "";
-        let priceQuery =
-          "SELECT ROWID, outlet_id, package_id, service_id, gender, mrp, selling_price, duration_minutes, is_active FROM Outlet_Service_Prices WHERE outlet_id = " +
-          outletId +
-          " AND is_active = true";
-        if (packageId) {
-          priceQuery += " AND package_id = " + packageId;
-        }
-        const priceRows = rowsOf(await zcql.executeZCQLQuery(priceQuery), "Outlet_Service_Prices");
-        const services = rowsOf(
-          await zcql.executeZCQLQuery(
-            "SELECT ROWID, name, slug, description, category_id, image_url, duration_minutes, gender, mrp, selling_price, currency, status, is_active, service_type FROM Salon_Services"
-          ),
-          "Salon_Services"
-        );
-        const grouped = engine.groupServiceOffers(services, priceRows, {
+        const grouped = await engine.loadOutletServiceOffers(zcql, outletId, {
           service_type: optionalText(req.query.service_type, "service_type", 40),
           gender: optionalText(req.query.gender, "gender", 20),
           q: optionalText(req.query.q || req.query.search, "q", 80).toLowerCase(),
+          package_id: packageId || undefined,
+          is_at_home: atHomeOnly ? true : undefined,
+          fulfillment_mode: atHomeOnly ? "AT_HOME" : undefined,
         });
         const types = Array.from(
           new Set(grouped.map((item) => item.service_type).filter(Boolean))
@@ -666,7 +601,10 @@ function salonRoutes(app) {
       }
 
       let query =
-        "SELECT ROWID, name, slug, description, category_id, image_url, duration_minutes, gender, mrp, selling_price, currency, service_type FROM Salon_Services WHERE status = 'ACTIVE' AND is_active = true";
+        "SELECT ROWID, name, slug, description, category_id, image_url, duration_minutes, gender, mrp, selling_price, currency, service_type, is_at_home FROM Salon_Services WHERE status = 'ACTIVE' AND is_active = true";
+      if (req.query.is_at_home === "true") {
+        query += " AND is_at_home = true";
+      }
       if (req.query.category_id) {
         query += " AND category_id = " + asId(req.query.category_id, "category_id");
       }
@@ -855,7 +793,7 @@ function salonRoutes(app) {
         appointment_date: appointmentDate,
         start_time: slot.start_time,
         end_time: slot.end_time,
-        status: "CONFIRMED",
+        status: "PENDING_PAYMENT",
         payment_status: "PENDING",
         currency: service.currency || "INR",
         subtotal: price,
@@ -878,7 +816,7 @@ function salonRoutes(app) {
         quantity: 1,
         unit_price: price,
         line_total: price,
-        status: "CONFIRMED",
+        status: "PENDING_PAYMENT",
       });
 
       const latest = rowOf(
@@ -902,33 +840,7 @@ function salonRoutes(app) {
       });
 
       const row = await loadAppointmentRow(zcql, asId(appointmentId, "appointment_id"), user.user_id);
-      let notification = { status: "SKIPPED" };
-      try {
-        const outlet = rowOf(
-          await zcql.executeZCQLQuery(
-            "SELECT name, area, address_line1, city, state FROM Outlets WHERE ROWID = " +
-              asId(slot.outlet_id, "outlet_id")
-          ),
-          "Outlets"
-        );
-        const staff = rowOf(
-          await zcql.executeZCQLQuery(
-            "SELECT first_name, last_name FROM Staff WHERE ROWID = " + staffId
-          ),
-          "Staff"
-        );
-        notification = await notifyBooking(req, user, row, {
-          salonName: (outlet && outlet.name) || "",
-          location: outlet ? engine.locationLabel(outlet) : "",
-          packageName: "",
-          serviceName: service.name,
-          employeeName: staff ? [staff.first_name, staff.last_name].filter(Boolean).join(" ") : "",
-          gender: req.body.gender || "",
-          date: appointmentDate,
-          startTime: slot.start_time,
-          price,
-        });
-      } catch (_) {}
+      const notification = { status: "SKIPPED", reason: "Advance payment is required before confirmation" };
 
       sendOk(res, {
         appointment: mapAppointment(

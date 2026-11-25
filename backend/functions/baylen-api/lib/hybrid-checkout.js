@@ -96,7 +96,8 @@ function resolveCheckoutPlan(evaluation, requestedMode, cartLines) {
           fulfillment_type: fulfillmentType,
           fulfillment_store_id: store && store.store_id ? String(store.store_id) : "",
           fulfillment_warehouse_id:
-            store && store.warehouse_id ? String(store.warehouse_id) : "",
+            (store && store.warehouse_id ? String(store.warehouse_id) : "") ||
+            (item.warehouse_id ? String(item.warehouse_id) : ""),
           store,
         };
       })
@@ -116,7 +117,11 @@ function resolveCheckoutPlan(evaluation, requestedMode, cartLines) {
         eta_label: group.eta_label || "",
         store,
         store_id: store && store.store_id ? String(store.store_id) : "",
-        warehouse_id: store && store.warehouse_id ? String(store.warehouse_id) : "",
+        warehouse_id:
+          (store && store.warehouse_id ? String(store.warehouse_id) : "") ||
+          (lines[0] && lines[0].fulfillment_warehouse_id
+            ? String(lines[0].fulfillment_warehouse_id)
+            : ""),
         lines,
       });
     }
@@ -130,7 +135,11 @@ function resolveCheckoutPlan(evaluation, requestedMode, cartLines) {
       eta_label: option.eta_label || "",
       store,
       store_id: store && store.store_id ? String(store.store_id) : "",
-      warehouse_id: store && store.warehouse_id ? String(store.warehouse_id) : "",
+      warehouse_id:
+        (store && store.warehouse_id ? String(store.warehouse_id) : "") ||
+        (lines[0] && lines[0].fulfillment_warehouse_id
+          ? String(lines[0].fulfillment_warehouse_id)
+          : ""),
       lines,
     });
   }

@@ -5,7 +5,10 @@ import 'package:flutter/material.dart';
 import '../api/catalyst_api.dart';
 import '../models/catalog.dart';
 import '../services/cart_service.dart';
+import '../services/delivery_location_service.dart';
+import '../utils/fulfillment_helpers.dart';
 import '../theme/shop_theme.dart';
+import '../widgets/product_contained_image.dart';
 import 'cart_screen.dart';
 import 'product_detail_screen.dart';
 
@@ -26,8 +29,8 @@ class _ShopBrandPageState extends State<ShopBrandPage> {
 
   CatalogBrandPage? _page;
   List<CatalogProduct> _products = const [];
-  int _total = 0;
-  int _pageIndex = 1;
+  String? _nextCursor;
+  bool _hasMoreProducts = false;
   bool _loading = true;
   bool _loadingMore = false;
   String? _error;
@@ -42,6 +45,7 @@ class _ShopBrandPageState extends State<ShopBrandPage> {
   RangeValues? _priceRange;
 
   String? _addingProductId;
+  bool _hasDeliveryLocation = false;
 
   CatalogBrand get _brand => _page?.brand ?? widget.brand ?? _placeholderBrand;
 
@@ -104,7 +108,8 @@ class _ShopBrandPageState extends State<ShopBrandPage> {
       _loading = true;
       _error = null;
       if (resetPage) {
-        _pageIndex = 1;
+        _nextCursor = null;
+        _hasMoreProducts = false;
       }
     });
     try {
@@ -119,7 +124,7 @@ class _ShopBrandPageState extends State<ShopBrandPage> {
       }
       final productData = await _fetchProducts(
         brandId: page.brand.id,
-        pageIndex: 1,
+        cursor: null,
       );
       if (!mounted) return;
       var minPrice = page.minPrice;
@@ -138,7 +143,7 @@ class _ShopBrandPageState extends State<ShopBrandPage> {
           url: page.url,
           seoTitle: page.seoTitle,
           seoDescription: page.seoDescription,
-          productCount: productData.total,
+          productCount: productData.products.length,
           categories: page.categories,
           minPrice: minPrice,
           maxPrice: maxPrice,
@@ -146,8 +151,8 @@ class _ShopBrandPageState extends State<ShopBrandPage> {
           ageGroups: page.ageGroups,
         );
         _products = productData.products;
-        _total = productData.total;
-        _pageIndex = 1;
+        _hasMoreProducts = productData.hasMore;
+        _nextCursor = productData.nextCursor;
         _loading = false;
         _priceRange ??= maxPrice > 0 ? RangeValues(minPrice, maxPrice) : null;
       });
@@ -160,10 +165,16 @@ class _ShopBrandPageState extends State<ShopBrandPage> {
     }
   }
 
-  Future<({List<CatalogProduct> products, int total})> _fetchProducts({
+  Future<({
+    List<CatalogProduct> products,
+    bool hasMore,
+    String? nextCursor,
+  })> _fetchProducts({
     required String brandId,
-    required int pageIndex,
+    String? cursor,
   }) async {
+    final coords = await DeliveryLocationService.instance.resolve();
+    _hasDeliveryLocation = coords.hasCoordinates;
     final minPrice = _priceRange?.start;
     final maxPrice = _priceRange?.end;
     final data = await _api.productsPage(
@@ -171,7 +182,8 @@ class _ShopBrandPageState extends State<ShopBrandPage> {
       categoryId: _categoryId,
       search: _search.text.trim(),
       sort: _sort,
-      page: pageIndex,
+      cursor: cursor,
+      page: 1,
       limit: 24,
       minPrice: minPrice,
       maxPrice: maxPrice,
@@ -180,6 +192,8 @@ class _ShopBrandPageState extends State<ShopBrandPage> {
       inStock: _inStock ? true : null,
       gender: _gender,
       ageGroup: _ageGroup,
+      latitude: coords.latitude,
+      longitude: coords.longitude,
     );
     final items = data['products'];
     final products = items is List
@@ -190,10 +204,10 @@ class _ShopBrandPageState extends State<ShopBrandPage> {
               .toList()
         : <CatalogProduct>[];
     final pagination = data['pagination'];
-    final total = pagination is Map
-        ? (pagination['total'] as num?)?.toInt() ?? products.length
-        : products.length;
-    return (products: products, total: total);
+    final hasMore = pagination is Map ? pagination['has_more'] == true : false;
+    final nextCursor =
+        pagination is Map ? pagination['next_cursor'] as String? : null;
+    return (products: products, hasMore: hasMore, nextCursor: nextCursor);
   }
 
   Future<void> _reloadProducts() async {
@@ -204,14 +218,16 @@ class _ShopBrandPageState extends State<ShopBrandPage> {
     setState(() {
       _loading = true;
       _error = null;
-      _pageIndex = 1;
+      _nextCursor = null;
+      _hasMoreProducts = false;
     });
     try {
-      final productData = await _fetchProducts(brandId: brandId, pageIndex: 1);
+      final productData = await _fetchProducts(brandId: brandId, cursor: null);
       if (!mounted) return;
       setState(() {
         _products = productData.products;
-        _total = productData.total;
+        _hasMoreProducts = productData.hasMore;
+        _nextCursor = productData.nextCursor;
         _loading = false;
       });
     } catch (error) {
@@ -225,19 +241,19 @@ class _ShopBrandPageState extends State<ShopBrandPage> {
 
   Future<void> _loadMore() async {
     final brandId = _brand.id;
-    if (_loadingMore || brandId.isEmpty || _products.length >= _total) {
+    if (_loadingMore || brandId.isEmpty || !_hasMoreProducts || _nextCursor == null) {
       return;
     }
     setState(() => _loadingMore = true);
     try {
-      final nextPage = _pageIndex + 1;
       final productData = await _fetchProducts(
         brandId: brandId,
-        pageIndex: nextPage,
+        cursor: _nextCursor,
       );
       if (!mounted) return;
       setState(() {
-        _pageIndex = nextPage;
+        _nextCursor = productData.nextCursor;
+        _hasMoreProducts = productData.hasMore;
         _products = [..._products, ...productData.products];
         _loadingMore = false;
       });
@@ -253,10 +269,24 @@ class _ShopBrandPageState extends State<ShopBrandPage> {
   }
 
   Future<void> _addToCart(CatalogProduct product) async {
-    if (product.availableQuantity < 1) {
+    if (product.isZohoCommerceProduct) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'This product is live from Zoho Commerce. Cart will unlock after Commerce checkout is configured.',
+          ),
+        ),
+      );
+      return;
+    }
+    if (!catalogProductCanAdd(product, hasLocation: _hasDeliveryLocation)) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('This product is out of stock')),
       );
+      return;
+    }
+    if (product.hasVariants) {
+      _openProduct(product);
       return;
     }
     setState(() => _addingProductId = product.id);
@@ -336,12 +366,15 @@ class _ShopBrandPageState extends State<ShopBrandPage> {
         : '${brand.name} | Baylen';
     final countLabel = _loading
         ? 'Loading products'
-        : '$_total product${_total == 1 ? '' : 's'}';
+        : _hasMoreProducts
+        ? '${_products.length}+ products'
+        : '${_products.length} product${_products.length == 1 ? '' : 's'}';
 
     return Title(
       title: seoTitle,
       color: kShopBlue,
-      child: Scaffold(
+      child: ShopThemeScope(
+        child: Scaffold(
         backgroundColor: kShopSurface,
         appBar: AppBar(
           title: Text(brand.name.isEmpty ? 'Brand' : brand.name),
@@ -495,6 +528,7 @@ class _ShopBrandPageState extends State<ShopBrandPage> {
                       final product = _products[index];
                       return _BrandProductCard(
                         product: product,
+                        hasLocation: _hasDeliveryLocation,
                         adding: _addingProductId == product.id,
                         onTap: () => _openProduct(product),
                         onAdd: () => _addToCart(product),
@@ -502,7 +536,7 @@ class _ShopBrandPageState extends State<ShopBrandPage> {
                     }, childCount: _products.length),
                   ),
                 ),
-                if (_products.length < _total)
+                if (_hasMoreProducts)
                   SliverToBoxAdapter(
                     child: Padding(
                       padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
@@ -517,6 +551,7 @@ class _ShopBrandPageState extends State<ShopBrandPage> {
           ),
         ),
       ),
+    ),
     );
   }
 }
@@ -839,19 +874,23 @@ class _BrandHeader extends StatelessWidget {
 class _BrandProductCard extends StatelessWidget {
   const _BrandProductCard({
     required this.product,
+    required this.hasLocation,
     required this.adding,
     required this.onTap,
     required this.onAdd,
   });
 
   final CatalogProduct product;
+  final bool hasLocation;
   final bool adding;
   final VoidCallback onTap;
   final VoidCallback onAdd;
 
   @override
   Widget build(BuildContext context) {
-    final soldOut = product.availableQuantity < 1;
+    final soldOut =
+        catalogProductSoldOut(product, hasLocation: hasLocation);
+    final badges = catalogDeliveryBadges(product, hasLocation: hasLocation);
     return Card(
       clipBehavior: Clip.antiAlias,
       child: InkWell(
@@ -864,13 +903,8 @@ class _BrandProductCard extends StatelessWidget {
                 fit: StackFit.expand,
                 children: [
                   product.thumbnailUrl.isEmpty
-                      ? const ColoredBox(color: Color(0xFFDCE7FF))
-                      : Image.network(
-                          product.thumbnailUrl,
-                          fit: BoxFit.cover,
-                          errorBuilder: (_, _, _) =>
-                              const ColoredBox(color: Color(0xFFDCE7FF)),
-                        ),
+                      ? const ColoredBox(color: Color(0xFFF3F7FC))
+                      : ProductContainedImage(url: product.thumbnailUrl),
                   if (product.discountPercent > 0)
                     Positioned(
                       left: 8,
@@ -906,7 +940,10 @@ class _BrandProductCard extends StatelessWidget {
                     product.name,
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(fontWeight: FontWeight.w600),
+                    style: const TextStyle(
+                      fontWeight: FontWeight.w600,
+                      color: kShopInk,
+                    ),
                   ),
                   const SizedBox(height: 4),
                   Text(

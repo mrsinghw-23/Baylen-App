@@ -6,9 +6,24 @@ const {
   catalystUser,
   bearerUser,
   requireUser,
+  sessionRole,
 } = require("../lib/session");
 const crypto = require("crypto");
-const { asId, optionalText, rowOf, rowsOf, num, sendOk, sqlString } = require("../lib/http");
+const { getAuthSessionSecret } = require("../lib/runtime-config");
+const { asId, optionalText, rowOf, rowsOf, num, isTruthy, insertedRowId, sendOk, sqlString } = require("../lib/http");
+const {
+  getWhatsappOtpStatus,
+  isDevOtpFallbackEnabled,
+  sendWhatsappOtp,
+} = require("../lib/whatsapp-otp");
+const { writeCustomerAudit } = require("../lib/audit");
+const {
+  canonicalMobile,
+  findUserByMobile,
+  USER_SELECT,
+} = require("../lib/phone-identity");
+const { loadCustomerIdentity } = require("../lib/account-recover");
+const { registerDeliveryPartnerAuthRoutes } = require("../lib/delivery-partner-auth");
 
 const OTP_TTL_MINUTES = 5;
 const OTP_MAX_ATTEMPTS = 5;
@@ -44,10 +59,10 @@ function normalizeMobile(value) {
   return text;
 }
 
-function otpHash(mobile, otp) {
+function otpHash(mobile, otp, purpose = "customer") {
   return crypto
-    .createHmac("sha256", process.env.AUTH_SESSION_SECRET || "baylen-dev-session-key")
-    .update(`${mobile}:${otp}`)
+    .createHmac("sha256", getAuthSessionSecret())
+    .update(`${purpose}:${mobile}:${otp}`)
     .digest("hex");
 }
 
@@ -76,19 +91,25 @@ function parseDate(value) {
   return Number.isFinite(parsed) ? parsed : 0;
 }
 
-async function latestOtpChallenge(req, mobile) {
+async function latestOtpChallenge(req, mobile, purpose = "customer") {
   const rows = rowsOf(
     await req.catalystApp
       .zcql()
       .executeZCQLQuery(
-        "SELECT ROWID, mobile, otp_hash, expires_at, attempts, is_consumed, CREATEDTIME FROM Auth_Otp_Challenges WHERE mobile = " +
-          sqlString(mobile) +
-          " AND is_consumed = false"
+        "SELECT ROWID, mobile, otp_hash, expires_at, attempts, is_consumed, purpose, CREATEDTIME FROM Auth_Otp_Challenges WHERE mobile = " +
+          sqlString(mobile)
       ),
     "Auth_Otp_Challenges"
   );
-  rows.sort((a, b) => parseDate(b.CREATEDTIME) - parseDate(a.CREATEDTIME));
-  return rows[0] || null;
+  const open = rows.filter((row) => {
+    if (isTruthy(row.is_consumed)) {
+      return false;
+    }
+    const rowPurpose = String(row.purpose || "customer").trim() || "customer";
+    return rowPurpose === purpose;
+  });
+  open.sort((a, b) => parseDate(b.CREATEDTIME) - parseDate(a.CREATEDTIME));
+  return open[0] || null;
 }
 
 async function consumeExpiredOtpChallenges(req, mobile) {
@@ -96,13 +117,18 @@ async function consumeExpiredOtpChallenges(req, mobile) {
     await req.catalystApp
       .zcql()
       .executeZCQLQuery(
-        "SELECT ROWID, expires_at FROM Auth_Otp_Challenges WHERE mobile = " +
-          sqlString(mobile) +
-          " AND is_consumed = false"
+        "SELECT ROWID, expires_at, is_consumed FROM Auth_Otp_Challenges WHERE mobile = " +
+          sqlString(mobile)
       ),
     "Auth_Otp_Challenges"
   );
   for (const row of rows) {
+    if (isTruthy(row.is_consumed)) {
+      continue;
+    }
+    if (parseDate(row.expires_at) >= Date.now()) {
+      continue;
+    }
     await req.catalystApp.datastore().table("Auth_Otp_Challenges").updateRow({
       ROWID: row.ROWID,
       is_consumed: true,
@@ -124,95 +150,20 @@ async function assertCanRequestOtp(req, mobile) {
 }
 
 async function sendOtp(mobile, otp) {
-  const tataApiKey = process.env.TATA_WHATSAPP_API_KEY || "";
-  const tataTemplate = process.env.TATA_TEMPLATE_NAME || "baylen_app_auth";
-
-  // 1. Dispatch real WhatsApp message via Tata Smartflo Omni Gateway
-  if (tataApiKey && tataTemplate) {
-    const rawDigits = mobile.replace(/\D/g, "").slice(-10);
-    try {
-      const response = await fetch("https://wb.omni.tatatelebusiness.com/whatsapp-cloud/messages", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${tataApiKey}`,
-        },
-        body: JSON.stringify({
-          messaging_product: "whatsapp",
-          recipient_type: "individual",
-          to: `91${rawDigits}`,
-          type: "template",
-          template: {
-            name: tataTemplate,
-            language: { code: "en" },
-            components: [
-              {
-                type: "body",
-                parameters: [
-                  { type: "text", text: otp },
-                ],
-              },
-              {
-                type: "button",
-                sub_type: "url",
-                index: "0",
-                parameters: [
-                  { type: "text", text: otp },
-                ],
-              },
-            ],
-          },
-        }),
-      });
-      if (response.ok) {
-        console.log(`[sendOtp] WhatsApp message successfully dispatched to +91${rawDigits}`);
-        return { sentVia: "WHATSAPP" };
-      }
-      const errText = await response.text();
-      console.error("[sendOtp] Tata Omni error response:", response.status, errText);
-    } catch (err) {
-      console.error("[sendOtp] Tata Omni network error:", err.message);
+  const allowDev = isDevOtpFallbackEnabled();
+  try {
+    return await sendWhatsappOtp(mobile, otp);
+  } catch (err) {
+    if (allowDev) {
+      console.log(`[sendOtp DEV FALLBACK] Mobile: ${mobile}, OTP: ${otp}`);
+      return {
+        sentVia: "DEV",
+        debugOtp: otp,
+        whatsappError: err.details || err.message,
+      };
     }
+    throw err;
   }
-
-  // 2. Try Generic SMS Webhook if configured
-  const webhookUrl = String(process.env.SMS_OTP_WEBHOOK_URL || "").trim();
-  if (webhookUrl) {
-    try {
-      const response = await fetch(webhookUrl, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          ...(process.env.SMS_OTP_WEBHOOK_TOKEN
-            ? { Authorization: `Bearer ${process.env.SMS_OTP_WEBHOOK_TOKEN}` }
-            : {}),
-        },
-        body: JSON.stringify({
-          to: mobile,
-          otp,
-          message: `Your Baylen verification code is ${otp}. It expires in ${OTP_TTL_MINUTES} minutes.`,
-          purpose: "BAYLEN_LOGIN",
-        }),
-      });
-      if (response.ok) {
-        return { sentVia: "SMS" };
-      }
-    } catch (err) {
-      console.error("[sendOtp] SMS webhook error:", err.message);
-    }
-  }
-
-  // 3. Fallback for Development & Testing
-  const devReturnOtp =
-    String(process.env.AUTH_OTP_DEV_RETURN_CODE || "true").toLowerCase() === "true";
-  if (devReturnOtp) {
-    console.log(`[sendOtp DEV FALLBACK] Mobile: ${mobile}, OTP: ${otp}`);
-    return { sentVia: "DEV", debugOtp: otp };
-  }
-
-  const error = new Error("Could not send OTP via WhatsApp or SMS gateway");
-  error.status = 502;
-  throw error;
 }
 
 function internalEmailForMobile(mobile) {
@@ -241,36 +192,49 @@ function normalizeGuestSessionId(value) {
 }
 
 async function ensureCustomerAccount(req, mobile) {
+  const canonical = canonicalMobile(mobile);
   const zcql = req.catalystApp.zcql();
   let isNewUser = false;
-  let user = rowOf(
-    await zcql.executeZCQLQuery(
-      "SELECT ROWID, Email, Phone, First_Name, Last_Name, gender, date_of_birth FROM Users WHERE Phone = " +
-        sqlString(mobile)
-    ),
-    "Users"
-  );
+  let user = await findUserByMobile(zcql, canonical);
+
+  if (user && String(user.Phone || "") !== canonical) {
+    try {
+      await req.catalystApp.datastore().table("Users").updateRow({
+        ROWID: user.ROWID,
+        Phone: canonical,
+      });
+      user.Phone = canonical;
+    } catch (_) {
+      const owner = rowOf(
+        await zcql.executeZCQLQuery(
+          "SELECT " + USER_SELECT + " FROM Users WHERE Phone = " + sqlString(canonical)
+        ),
+        "Users"
+      );
+      if (owner) {
+        user = owner;
+      }
+    }
+  }
 
   if (!user) {
     isNewUser = true;
-    const tempEmail = `${mobile.replace(/\D/g, "")}@pending.baylen.local`;
-    await req.catalystApp.datastore().table("Users").insertRow({
-      Email: tempEmail,
-      Phone: mobile,
-      First_Name: "Pending",
-      Last_Name: "Registration",
-      date_of_birth: "2000-01-01",
-      gender: "UNSPECIFIED",
-      status: "Active",
-      Role: "Customer",
-    });
-    user = rowOf(
-      await zcql.executeZCQLQuery(
-        "SELECT ROWID, Email, Phone, First_Name, Last_Name, gender, date_of_birth FROM Users WHERE Phone = " +
-          sqlString(mobile)
-      ),
-      "Users"
-    );
+    const tempEmail = `${canonical.replace(/\D/g, "")}@pending.baylen.local`;
+    try {
+      await req.catalystApp.datastore().table("Users").insertRow({
+        Email: tempEmail,
+        Phone: canonical,
+        First_Name: "Pending",
+        Last_Name: "Registration",
+        date_of_birth: "2000-01-01",
+        gender: "UNSPECIFIED",
+        status: "Active",
+        Role: "Customer",
+      });
+    } catch (_) {
+      isNewUser = false;
+    }
+    user = await findUserByMobile(zcql, canonical);
   }
 
   if (!user) {
@@ -282,7 +246,7 @@ async function ensureCustomerAccount(req, mobile) {
   const userId = String(user.ROWID);
   let profile = rowOf(
     await zcql.executeZCQLQuery(
-      "SELECT ROWID, full_name, mobile, email, gender, date_of_birth FROM User_Profiles WHERE user_id = " +
+      "SELECT ROWID, full_name, mobile, email, gender, date_of_birth, profile_photo_url FROM User_Profiles WHERE user_id = " +
         userId
     ),
     "User_Profiles"
@@ -291,9 +255,9 @@ async function ensureCustomerAccount(req, mobile) {
   if (!profile) {
     await req.catalystApp.datastore().table("User_Profiles").insertRow({
       user_id: userId,
-      full_name: isNewUser ? "" : [user.First_Name, user.Last_Name].filter(Boolean).join(" "),
-      mobile,
-      email: isNewUser ? "" : user.Email,
+      full_name: isNewUser ? "Baylen Customer" : [user.First_Name, user.Last_Name].filter(Boolean).join(" ") || "Baylen Customer",
+      mobile: canonical,
+      email: isNewUser ? tempEmailFallback(canonical) : user.Email || tempEmailFallback(canonical),
       gender: isNewUser ? "" : user.gender || "",
       date_of_birth: null,
       profile_photo_url: null,
@@ -304,37 +268,30 @@ async function ensureCustomerAccount(req, mobile) {
     });
     profile = rowOf(
       await zcql.executeZCQLQuery(
-        "SELECT ROWID, full_name, mobile, email, gender, date_of_birth FROM User_Profiles WHERE user_id = " +
+        "SELECT ROWID, full_name, mobile, email, gender, date_of_birth, profile_photo_url FROM User_Profiles WHERE user_id = " +
           userId
       ),
       "User_Profiles"
     );
+  } else if (profile.mobile && String(profile.mobile) !== canonical) {
+    try {
+      await req.catalystApp.datastore().table("User_Profiles").updateRow({
+        ROWID: profile.ROWID,
+        mobile: canonical,
+      });
+      profile.mobile = canonical;
+    } catch (_) {}
   }
 
-  const email = (profile?.email && !profile.email.includes(".local")) ? profile.email : (user.Email && !user.Email.includes(".local") ? user.Email : "");
-  const rawFirst = user.First_Name || "";
-  const firstName = (rawFirst === "Pending" || rawFirst === "Baylen") ? "" : rawFirst;
-  const rawLast = user.Last_Name || "";
-  const lastName = (rawLast === "Registration" || rawLast === "Customer") ? "" : rawLast;
-
-  const isComplete = Boolean(
-    firstName.trim().length >= 2 &&
-    lastName.trim().length >= 1 &&
-    email.trim().length > 3 &&
-    /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)
-  );
-
+  const identity = await loadCustomerIdentity(req, userId);
   return {
-    user_id: userId,
-    email: email,
-    first_name: firstName,
-    last_name: lastName,
-    mobile,
-    gender: profile?.gender || user.gender || "",
-    date_of_birth: profile?.date_of_birth || "",
+    ...identity,
     is_new_user: isNewUser,
-    is_profile_complete: isComplete,
   };
+}
+
+function tempEmailFallback(mobile) {
+  return `${String(mobile || "").replace(/\D/g, "")}@pending.baylen.local`;
 }
 
 async function getOrCreateUserCartForMigration(req, userId) {
@@ -583,7 +540,7 @@ function authRoutes(app) {
         res.redirect(302, retry);
         return;
       }
-      const token = signSession(mapCatalystUser(user));
+      const token = signSession({ ...mapCatalystUser(user), role: "customer" });
       const target = new URL(origin);
       target.hash = "auth=" + encodeURIComponent(token);
       res.redirect(302, target.toString());
@@ -595,8 +552,15 @@ function authRoutes(app) {
   app.get("/v1/auth/me", async (req, res, next) => {
     try {
       const fromToken = bearerUser(req);
-      if (fromToken) {
-        sendOk(res, { user: publicUser(fromToken) });
+      if (fromToken && sessionRole(fromToken) === "delivery_partner") {
+        const error = new Error("This action requires a customer account");
+        error.status = 403;
+        error.code = "FORBIDDEN_ROLE";
+        throw error;
+      }
+      if (fromToken && fromToken.user_id) {
+        const identity = await loadCustomerIdentity(req, String(fromToken.user_id));
+        sendOk(res, { user: publicUser(identity) });
         return;
       }
       const user = await catalystUser(req);
@@ -624,20 +588,24 @@ function authRoutes(app) {
         .table("Auth_Otp_Challenges")
         .insertRow({
           mobile,
-          otp_hash: otpHash(mobile, otp),
+          otp_hash: otpHash(mobile, otp, "customer"),
           expires_at: nowSql(expiresAt),
           attempts: 0,
           is_consumed: false,
+          purpose: "customer",
           request_ip: getClientIp(req),
           user_agent: String(req.headers["user-agent"] || "").slice(0, 255),
           sent_via: sendResult.sentVia,
         });
       sendOk(res, {
-        challenge_id: String(inserted.ROWID || inserted.rowid || ""),
+        challenge_id: insertedRowId(inserted),
         mobile,
         expires_in_seconds: OTP_TTL_MINUTES * 60,
         resend_after_seconds: OTP_RESEND_SECONDS,
         sent_via: sendResult.sentVia,
+        ...(sendResult.sentVia === "DEV" && sendResult.debugOtp
+          ? { debug_otp: sendResult.debugOtp }
+          : {}),
       });
     } catch (error) {
       next(error);
@@ -664,13 +632,18 @@ function authRoutes(app) {
             await req.catalystApp
               .zcql()
               .executeZCQLQuery(
-                "SELECT ROWID, mobile, otp_hash, expires_at, attempts, is_consumed FROM Auth_Otp_Challenges WHERE ROWID = " +
+                "SELECT ROWID, mobile, otp_hash, expires_at, attempts, is_consumed, purpose FROM Auth_Otp_Challenges WHERE ROWID = " +
                   challengeId
               ),
             "Auth_Otp_Challenges"
           )
-        : await latestOtpChallenge(req, mobile);
-      if (!challenge || challenge.mobile !== mobile || challenge.is_consumed === true) {
+        : await latestOtpChallenge(req, mobile, "customer");
+      if (
+        !challenge ||
+        challenge.mobile !== mobile ||
+        isTruthy(challenge.is_consumed) ||
+        String(challenge.purpose || "customer").trim() !== "customer"
+      ) {
         const error = new Error("OTP request not found. Please request a new OTP.");
         error.status = 404;
         throw error;
@@ -694,7 +667,7 @@ function authRoutes(app) {
         throw error;
       }
 
-      const isValidCode = challenge.otp_hash === otpHash(mobile, otp);
+      const isValidCode = challenge.otp_hash === otpHash(mobile, otp, "customer");
       if (!isValidCode) {
         const attempts = num(challenge.attempts) + 1;
         await req.catalystApp.datastore().table("Auth_Otp_Challenges").updateRow({
@@ -714,8 +687,13 @@ function authRoutes(app) {
       const user = await ensureCustomerAccount(req, mobile);
       const migration = await migrateGuestData(req, user.user_id, guestSessionId);
       await registerLoginDevice(req, user.user_id);
+      await writeCustomerAudit(req, user.user_id, "LOGIN", "Users", user.user_id, null, {
+        mobile: user.mobile,
+        is_new_user: user.is_new_user === true,
+        device_id: optionalText(req.body && req.body.device_id, "device_id", 150) || "",
+      });
       sendOk(res, {
-        token: signSession(user),
+        token: signSession({ ...user, role: "customer" }),
         user: publicUser(user),
         is_new_user: user.is_new_user === true,
         migration,
@@ -727,10 +705,11 @@ function authRoutes(app) {
 
   app.post("/v1/auth/session/refresh", async (req, res, next) => {
     try {
-      const user = requireUser(req);
+      const sessionUser = requireUser(req);
+      const identity = await loadCustomerIdentity(req, sessionUser.user_id);
       sendOk(res, {
-        token: signSession(user),
-        user: publicUser(user),
+        token: signSession({ ...identity, role: "customer" }),
+        user: publicUser(identity),
       });
     } catch (error) {
       next(error);
@@ -867,8 +846,14 @@ function authRoutes(app) {
         is_profile_complete: true,
       };
 
+      await writeCustomerAudit(req, user.user_id, "PROFILE_COMPLETE", "Users", user.user_id, null, {
+        email,
+        first_name: firstName,
+        last_name: lastName,
+      });
+
       sendOk(res, {
-        token: signSession(updatedUser),
+        token: signSession({ ...updatedUser, role: "customer" }),
         user: publicUser(updatedUser),
         message: "Profile registered successfully",
       });
@@ -876,6 +861,8 @@ function authRoutes(app) {
       next(error);
     }
   });
+
+  registerDeliveryPartnerAuthRoutes(app);
 }
 
 module.exports = authRoutes;

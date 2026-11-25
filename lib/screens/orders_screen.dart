@@ -2,8 +2,13 @@ import 'package:flutter/material.dart';
 
 import '../auth/auth_service.dart';
 import '../auth/auth_user.dart';
+import '../models/account.dart';
 import '../models/order.dart';
+import '../utils/fulfillment_helpers.dart';
 import 'login_screen.dart';
+import 'order_tracking_screen.dart';
+import 'payment_checkout_screen.dart';
+import '../widgets/offline_account_banner.dart';
 
 class OrdersScreen extends StatefulWidget {
   const OrdersScreen({super.key});
@@ -32,12 +37,19 @@ class _OrdersScreenState extends State<OrdersScreen> {
       });
       return;
     }
+    final cached = AuthService.instance.bootstrap.value?.orders ?? [];
     setState(() {
-      _loading = true;
+      if (cached.isNotEmpty) {
+        _orders = cached;
+        _loading = false;
+      } else {
+        _loading = true;
+      }
       _error = null;
     });
     try {
       final orders = await AuthService.instance.api.orders();
+      AuthService.instance.noteLiveDataReceived();
       if (!mounted) return;
       setState(() {
         _orders = orders;
@@ -47,9 +59,35 @@ class _OrdersScreenState extends State<OrdersScreen> {
       if (!mounted) return;
       setState(() {
         _loading = false;
-        _error = error.toString();
+        if (_orders.isEmpty) {
+          _error = error.toString();
+        }
       });
     }
+  }
+
+  Future<void> _payOrder(ShopOrder order) async {
+    final paid = await Navigator.of(context).push<PaymentRecord>(
+      MaterialPageRoute(
+        builder: (_) => PaymentCheckoutScreen(
+          referenceType: 'ORDER',
+          referenceId: order.id,
+        ),
+      ),
+    );
+    if (!mounted) return;
+    if (paid?.isConfirmed == true) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Payment received. The order is confirmed.')),
+      );
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Payment was not completed. The order stays unpaid.'),
+        ),
+      );
+    }
+    await _load();
   }
 
   @override
@@ -59,7 +97,11 @@ class _OrdersScreenState extends State<OrdersScreen> {
       builder: (context, user, _) {
         return Scaffold(
           appBar: AppBar(title: const Text('Orders')),
-          body: user == null
+          body: Column(
+            children: [
+              const OfflineAccountBanner(),
+              Expanded(
+                child: user == null
               ? Center(
                   child: FilledButton(
                     onPressed: () {
@@ -98,9 +140,31 @@ class _OrdersScreenState extends State<OrdersScreen> {
                         child: ListTile(
                           title: Text(order.orderNumber),
                           subtitle: Text(
-                            '${order.status} - payment ${order.paymentStatus}',
+                            [
+                              if (order.fulfillmentMode.isNotEmpty)
+                                order.fulfillmentLabel,
+                              '${order.status} - payment ${order.paymentStatus}',
+                            ].join(' · '),
                           ),
-                          trailing: Text(order.totalLabel),
+                          trailing: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              if (order.needsOnlinePayment)
+                                TextButton(
+                                  onPressed: () => _payOrder(order),
+                                  child: const Text('Pay'),
+                                ),
+                              Text(order.totalLabel),
+                              if (order.canTrackDelivery) ...[
+                                const SizedBox(width: 8),
+                                Icon(
+                                  Icons.local_shipping_outlined,
+                                  size: 18,
+                                  color: Theme.of(context).colorScheme.primary,
+                                ),
+                              ],
+                            ],
+                          ),
                           onTap: () {
                             Navigator.of(context).push(
                               MaterialPageRoute<void>(
@@ -114,6 +178,9 @@ class _OrdersScreenState extends State<OrdersScreen> {
                     },
                   ),
                 ),
+              ),
+            ],
+          ),
         );
       },
     );
@@ -193,6 +260,32 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
     return reason;
   }
 
+  Future<void> _payOrder(ShopOrder order) async {
+    setState(() => _busy = true);
+    final paid = await Navigator.of(context).push<PaymentRecord>(
+      MaterialPageRoute(
+        builder: (_) => PaymentCheckoutScreen(
+          referenceType: 'ORDER',
+          referenceId: order.id,
+        ),
+      ),
+    );
+    if (!mounted) return;
+    if (paid?.isConfirmed == true) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Payment received. The order is confirmed.')),
+      );
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Payment was not completed. The order stays unpaid.'),
+        ),
+      );
+    }
+    await _load();
+    if (mounted) setState(() => _busy = false);
+  }
+
   Future<void> _cancelOrder(ShopOrder order) async {
     final reason = await _askReason('Cancel order');
     if (reason == null || reason.isEmpty) {
@@ -262,6 +355,17 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
                 padding: const EdgeInsets.all(16),
                 children: [
                   Text('${order.status} - payment ${order.paymentStatus}'),
+                  if (order.fulfillmentMode.isNotEmpty) ...[
+                    const SizedBox(height: 4),
+                    Text(
+                      order.fulfillmentLabel,
+                      style: const TextStyle(fontWeight: FontWeight.w700),
+                    ),
+                    Text(
+                      orderDeliveryEstimate(order),
+                      style: const TextStyle(color: Color(0xFF6B7C93)),
+                    ),
+                  ],
                   const SizedBox(height: 8),
                   Text(
                     order.totalLabel,
@@ -269,6 +373,67 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
                   ),
                   const SizedBox(height: 12),
                   if (_busy) const LinearProgressIndicator(),
+                  if (order.needsOnlinePayment) ...[
+                    FilledButton.icon(
+                      onPressed: _busy ? null : () => _payOrder(order),
+                      icon: const Icon(Icons.payment),
+                      label: const Text('Pay with Razorpay'),
+                    ),
+                    const SizedBox(height: 8),
+                  ],
+                  if (order.canTrackDelivery) ...[
+                    FilledButton.icon(
+                      onPressed: () {
+                        Navigator.of(context).push(
+                          MaterialPageRoute<void>(
+                            builder: (_) => OrderTrackingScreen(
+                              orderId: order.trackId,
+                              orderNumber: order.orderNumber,
+                            ),
+                          ),
+                        );
+                      },
+                      icon: const Icon(Icons.local_shipping_outlined),
+                      label: const Text('Track delivery'),
+                    ),
+                    const SizedBox(height: 8),
+                  ],
+                  if (order.children.isNotEmpty) ...[
+                    Text(
+                      'Shipments',
+                      style: Theme.of(context).textTheme.titleMedium,
+                    ),
+                    const SizedBox(height: 8),
+                    ...order.children.map(
+                      (child) => ListTile(
+                        contentPadding: EdgeInsets.zero,
+                        title: Text(child.fulfillmentLabel),
+                        subtitle: Text(
+                          [
+                            '${child.orderNumber} · ${child.status}',
+                            if (child.fulfillmentMode.isNotEmpty)
+                              orderDeliveryEstimate(child),
+                          ].join('\n'),
+                        ),
+                        trailing: child.canTrackDelivery
+                            ? IconButton(
+                                icon: const Icon(Icons.local_shipping_outlined),
+                                onPressed: () {
+                                  Navigator.of(context).push(
+                                    MaterialPageRoute<void>(
+                                      builder: (_) => OrderTrackingScreen(
+                                        orderId: child.trackId,
+                                        orderNumber: child.orderNumber,
+                                      ),
+                                    ),
+                                  );
+                                },
+                              )
+                            : null,
+                      ),
+                    ),
+                    const Divider(),
+                  ],
                   if (order.canCancel)
                     OutlinedButton.icon(
                       onPressed: _busy ? null : () => _cancelOrder(order),
@@ -301,7 +466,7 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
                   if (_timeline.isNotEmpty) ...[
                     const Divider(),
                     Text(
-                      'Tracking',
+                      'Updates',
                       style: Theme.of(context).textTheme.titleMedium,
                     ),
                     const SizedBox(height: 8),

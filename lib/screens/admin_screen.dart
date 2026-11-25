@@ -3232,8 +3232,9 @@ class _OutletTabState extends State<_OutletTab> {
                     DropdownMenuItem(value: 'Bronze', child: Text('Bronze')),
                     DropdownMenuItem(value: 'Silver', child: Text('Silver')),
                     DropdownMenuItem(value: 'Gold', child: Text('Gold')),
-                    DropdownMenuItem(value: 'Luxury', child: Text('Luxury')),
                     DropdownMenuItem(value: 'Royal', child: Text('Royal')),
+                    DropdownMenuItem(value: 'Luxury', child: Text('Luxury')),
+                    DropdownMenuItem(value: 'Diamond', child: Text('Diamond')),
                   ],
                   onChanged: (value) =>
                       setState(() => _salonCategory = value ?? 'Gold'),

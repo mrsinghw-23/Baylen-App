@@ -7,6 +7,8 @@ class AuthUser {
     required this.lastName,
     this.gender = '',
     this.dateOfBirth = '',
+    this.profilePhotoUrl = '',
+    this.createdAt = '',
     this.isProfileComplete = false,
   });
 
@@ -17,6 +19,8 @@ class AuthUser {
   final String lastName;
   final String gender;
   final String dateOfBirth;
+  final String profilePhotoUrl;
+  final String createdAt;
   final bool isProfileComplete;
 
   String get displayName {
@@ -46,6 +50,8 @@ class AuthUser {
       lastName: lastName,
       gender: json['gender']?.toString() ?? '',
       dateOfBirth: json['date_of_birth']?.toString() ?? '',
+      profilePhotoUrl: json['profile_photo_url']?.toString() ?? '',
+      createdAt: json['created_at']?.toString() ?? '',
       isProfileComplete: isComplete,
     );
   }
@@ -59,6 +65,8 @@ class AuthUser {
       'last_name': lastName,
       'gender': gender,
       'date_of_birth': dateOfBirth,
+      'profile_photo_url': profilePhotoUrl,
+      'created_at': createdAt,
       'is_profile_complete': isProfileComplete,
     };
   }

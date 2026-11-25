@@ -1,0 +1,108 @@
+{
+  "ok": true,
+  "environment": "Development",
+  "ran_at": "2026-09-09T10:38:31.768Z",
+  "dry_run": false,
+  "note": "Backend E2E simulation — device GPS, push, and admin console steps are manual follow-ups.",
+  "steps": [
+    {
+      "id": 1,
+      "title": "Customer booking exists (at-home beauty service job)",
+      "ok": true,
+      "service_job_id": "36851000000397563",
+      "booking_number": "PP004-HOME-ACCEPT",
+      "status": "CONFIRMED",
+      "payment_status": "PAID",
+      "manual": "Verify Flutter: register → browse → book (same user flow on device)"
+    },
+    {
+      "id": 2,
+      "title": "Test partner KYC approved and operational",
+      "ok": true,
+      "partner_row_id": "36851000000379403",
+      "status": "active",
+      "manual": "Verify admin console KYC approval if status is not active"
+    },
+    {
+      "id": 3,
+      "title": "Partner goes online",
+      "ok": true,
+      "online_status": "ONLINE_AVAILABLE",
+      "manual": "Verify partner app dashboard shows ONLINE_AVAILABLE"
+    },
+    {
+      "id": 4,
+      "title": "Job dispatched → partner notification readable",
+      "ok": true,
+      "job_status": "ASSIGNED",
+      "dispatched": true,
+      "unread_before": 25,
+      "unread_after": 26,
+      "latest_notification": "PROFESSIONAL_JOB_ASSIGNED"
+    },
+    {
+      "id": 5,
+      "title": "Partner accepts job",
+      "ok": true,
+      "new_status": "ACCEPTED"
+    },
+    {
+      "id": 6,
+      "title": "Customer tracking shows assigned professional job",
+      "ok": true,
+      "job_status": "ACCEPTED",
+      "tracking_allowed": false,
+      "manual": "Flutter tracking screen should show assigned state before travel"
+    },
+    {
+      "id": 7,
+      "title": "Start travel → customer map shows live location",
+      "ok": true,
+      "location_status": "LIVE",
+      "latitude": 23.3448,
+      "longitude": 85.3101,
+      "manual": "Device GPS not tested — cache coordinates used"
+    },
+    {
+      "id": 8,
+      "title": "Partner arrives → customer sees arrived state (coords hidden)",
+      "ok": true,
+      "arrived": true,
+      "location_status": "UNAVAILABLE"
+    },
+    {
+      "id": 9,
+      "title": "Customer OTP → service started",
+      "ok": true,
+      "otp_verified": true,
+      "manual": "Verify both apps show service in progress on device"
+    },
+    {
+      "id": 10,
+      "title": "Service complete → earnings on partner dashboard",
+      "ok": true,
+      "job_status": "COMPLETED",
+      "net_amount": 1039.2,
+      "available_earnings": 2238.4,
+      "earnings_today": 0
+    },
+    {
+      "id": 11,
+      "title": "Customer receives service completed notification",
+      "ok": true,
+      "notification_count": 20,
+      "latest_body": "Service in progress",
+      "manual": "Verify push/in-app notification on customer device"
+    },
+    {
+      "id": 12,
+      "title": "Admin audit: earning, invoice, job status history",
+      "ok": true,
+      "earning_id": "36851000000391480",
+      "earning_status": "AVAILABLE",
+      "invoice_id": "36851000000394542",
+      "status_history_rows": 300,
+      "manual": "Verify Catalyst console rows for finance and Job_Status_History"
+    }
+  ]
+}

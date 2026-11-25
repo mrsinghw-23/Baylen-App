@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:geolocator/geolocator.dart';
 
 import '../api/provider_api.dart';
 import '../models/provider.dart';
@@ -27,10 +28,10 @@ class _ProviderScreenState extends State<ProviderScreen> {
   String? _error;
   int _selectedTab = 0; // 0: Active, 1: All, 2: Completed
 
-  // Simulated GPS Broadcast state
+  // Real GPS broadcast while en route
   Timer? _gpsTimer;
+  StreamSubscription<Position>? _positionSub;
   String? _activeBroadcastingJobId;
-  int _gpsStep = 0;
 
   @override
   void initState() {
@@ -41,6 +42,7 @@ class _ProviderScreenState extends State<ProviderScreen> {
   @override
   void dispose() {
     _gpsTimer?.cancel();
+    _positionSub?.cancel();
     _providerIdController.dispose();
     _providerKeyController.dispose();
     super.dispose();
@@ -112,71 +114,169 @@ class _ProviderScreenState extends State<ProviderScreen> {
     }
   }
 
-  void _startGpsBroadcast(ProviderJob job) {
+  Future<void> _startGpsBroadcast(ProviderJob job) async {
     _gpsTimer?.cancel();
-    _gpsStep = 0;
+    await _positionSub?.cancel();
     _activeBroadcastingJobId = job.id;
 
-    // Simulated coordinates moving towards Bandra / Mumbai coordinates
-    final points = [
-      (19.0596, 72.8295),
-      (19.0610, 72.8310),
-      (19.0625, 72.8330),
-      (19.0640, 72.8350),
-      (19.0655, 72.8370),
-      (19.0670, 72.8390),
-    ];
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text(
-          'Simulated live GPS broadcast started (sending pings)...',
-        ),
-      ),
-    );
-    setState(() {});
-
-    _gpsTimer = Timer.periodic(const Duration(seconds: 4), (timer) async {
-      if (_gpsStep >= points.length) {
-        timer.cancel();
+    final permission = await Geolocator.checkPermission();
+    if (permission == LocationPermission.denied) {
+      final requested = await Geolocator.requestPermission();
+      if (requested == LocationPermission.denied ||
+          requested == LocationPermission.deniedForever) {
         if (!mounted) return;
-        setState(() {
-          _activeBroadcastingJobId = null;
-        });
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text(
-              'GPS Simulation finished: Provider reached destination.',
-            ),
-          ),
+          const SnackBar(content: Text('Location permission is required to share live GPS.')),
         );
         return;
       }
+    }
 
-      final (lat, lng) = points[_gpsStep];
-      _gpsStep++;
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Sharing your live location with the customer…')),
+    );
+    setState(() {});
 
+    Future<void> sendPing(Position position) async {
       try {
         await _api?.sendLocationPing(
           jobId: job.id,
           providerId: _providerIdController.text.trim(),
-          latitude: lat,
-          longitude: lng,
-          heading: 45.0,
-          speed: 25.0,
+          latitude: position.latitude,
+          longitude: position.longitude,
+          heading: position.heading,
+          speed: position.speed,
+          accuracy: position.accuracy,
           status: 'EN_ROUTE',
         );
       } catch (_) {}
-    });
+    }
+
+    try {
+      final current = await Geolocator.getCurrentPosition(
+        locationSettings: const LocationSettings(accuracy: LocationAccuracy.high),
+      );
+      await sendPing(current);
+    } catch (_) {}
+
+    _positionSub = Geolocator.getPositionStream(
+      locationSettings: const LocationSettings(
+        accuracy: LocationAccuracy.high,
+        distanceFilter: 25,
+      ),
+    ).listen((position) => sendPing(position));
   }
 
   void _stopGpsBroadcast() {
     _gpsTimer?.cancel();
+    _positionSub?.cancel();
     setState(() {
       _activeBroadcastingJobId = null;
     });
     ScaffoldMessenger.of(context)
-        .showSnackBar(const SnackBar(content: Text('GPS broadcast stopped')));
+        .showSnackBar(const SnackBar(content: Text('Live location sharing stopped')));
+  }
+
+  void _showOtpDialog(ProviderJob job) {
+    final otpController = TextEditingController();
+    showDialog<void>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Verify arrival code'),
+        content: TextField(
+          controller: otpController,
+          keyboardType: TextInputType.number,
+          maxLength: 6,
+          decoration: const InputDecoration(
+            labelText: '6-digit code from customer',
+            border: OutlineInputBorder(),
+          ),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
+          FilledButton(
+            onPressed: () async {
+              Navigator.pop(ctx);
+              try {
+                await _api?.verifyArrivalOtp(
+                  jobId: job.id,
+                  providerId: _providerIdController.text.trim(),
+                  otp: otpController.text.trim(),
+                );
+                if (!mounted) return;
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Arrival code verified')),
+                );
+              } catch (e) {
+                if (!mounted) return;
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text('$e'), backgroundColor: Colors.red),
+                );
+              } finally {
+                otpController.dispose();
+              }
+            },
+            child: const Text('Verify'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showExtraServiceDialog(ProviderJob job) {
+    final nameController = TextEditingController(text: 'Deep conditioning add-on');
+    final priceController = TextEditingController(text: '499');
+    showDialog<void>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Request additional service'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(
+              controller: nameController,
+              decoration: const InputDecoration(labelText: 'Service name', border: OutlineInputBorder()),
+            ),
+            const SizedBox(height: 10),
+            TextField(
+              controller: priceController,
+              keyboardType: TextInputType.number,
+              decoration: const InputDecoration(labelText: 'Price (INR)', border: OutlineInputBorder()),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
+          FilledButton(
+            onPressed: () async {
+              Navigator.pop(ctx);
+              try {
+                await _api?.requestExtraService(
+                  jobId: job.id,
+                  providerId: _providerIdController.text.trim(),
+                  name: nameController.text.trim(),
+                  price: double.tryParse(priceController.text.trim()) ?? 0,
+                );
+                if (!mounted) return;
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Additional service request sent to customer')),
+                );
+              } catch (e) {
+                if (!mounted) return;
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text('$e'), backgroundColor: Colors.red),
+                );
+              } finally {
+                nameController.dispose();
+                priceController.dispose();
+              }
+            },
+            child: const Text('Send request'),
+          ),
+        ],
+      ),
+    );
   }
 
   void _showProofDialog(ProviderJob job) {
@@ -708,9 +808,16 @@ class _ProviderScreenState extends State<ProviderScreen> {
           ),
         if (job.status == 'ACCEPTED')
           FilledButton.icon(
-            onPressed: () => _updateStatus(job, 'EN_ROUTE'),
+            onPressed: () async {
+              await _updateStatus(job, 'EN_ROUTE');
+              if (!mounted) return;
+              final refreshed = _jobs.where((item) => item.id == job.id).firstOrNull;
+              if (refreshed != null) {
+                await _startGpsBroadcast(refreshed);
+              }
+            },
             icon: const Icon(Icons.directions_car_outlined, size: 16),
-            label: const Text('Start Travel (En Route)'),
+            label: const Text('Start travel'),
           ),
         if (job.status == 'EN_ROUTE') ...[
           FilledButton.icon(
@@ -726,7 +833,7 @@ class _ProviderScreenState extends State<ProviderScreen> {
               size: 16,
             ),
             label: Text(
-              isBroadcasting ? 'Stop GPS Broadcast' : 'Broadcast Live GPS',
+              isBroadcasting ? 'Stop live location' : 'Share live location',
             ),
             style: isBroadcasting
                 ? OutlinedButton.styleFrom(
@@ -735,18 +842,30 @@ class _ProviderScreenState extends State<ProviderScreen> {
                 : null,
           ),
         ],
-        if (job.status == 'ARRIVED')
+        if (job.status == 'ARRIVED') ...[
+          OutlinedButton.icon(
+            onPressed: () => _showOtpDialog(job),
+            icon: const Icon(Icons.password_outlined, size: 16),
+            label: const Text('Verify arrival code'),
+          ),
           FilledButton.icon(
             onPressed: () => _updateStatus(job, 'STARTED'),
             icon: const Icon(Icons.play_arrow_outlined, size: 16),
             label: const Text('Start Service'),
           ),
-        if (job.status == 'STARTED')
+        ],
+        if (job.status == 'STARTED') ...[
+          OutlinedButton.icon(
+            onPressed: () => _showExtraServiceDialog(job),
+            icon: const Icon(Icons.add_circle_outline, size: 16),
+            label: const Text('Request add-on'),
+          ),
           FilledButton.icon(
             onPressed: () => _showProofDialog(job),
             icon: const Icon(Icons.verified_outlined, size: 16),
             label: const Text('Complete & Upload Proof'),
           ),
+        ],
       ],
     );
   }

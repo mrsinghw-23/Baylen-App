@@ -12,8 +12,8 @@
       "id": "36851000000230006",
       "name": "Baylen-App",
       "domain": {
-        "id": "50045005846",
-        "name": "baylen-app-60069781151.development"
+        "id": "60069781151",
+        "name": "baylen-app-60069781151"
       },
       "timezone": "Asia/Kolkata",
       "env": [
@@ -22,6 +22,20 @@
           "id": "60069781151",
           "name": "Development",
           "type": 3,
+          "env_status": "Active",
+          "project_details": {
+            "project_name": "Baylen-App",
+            "id": "36851000000230006",
+            "project_type": "Live"
+          },
+          "is_default": false,
+          "action_required": false
+        },
+        {
+          "idx": 2,
+          "id": "50045560538",
+          "name": "Production",
+          "type": 1,
           "env_status": "Active",
           "project_details": {
             "project_name": "Baylen-App",

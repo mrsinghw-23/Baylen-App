@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
 
 import '../api/catalyst_api.dart';
+import '../models/at_home_beauty.dart';
 import '../models/salon.dart';
 import '../shell/main_shell.dart';
 import '../widgets/home/_home_constants.dart';
@@ -16,12 +17,20 @@ import '../widgets/home/nearby_salons.dart';
 import '../widgets/home/quick_access.dart';
 import '../widgets/home/trending_section.dart';
 import '../widgets/home/location_picker_sheet.dart';
+import '../auth/auth_service.dart';
 import '../services/location_service.dart';
+import '../utils/location_status.dart';
 import '../services/cart_service.dart';
 import '../services/notification_service.dart';
 import 'nearby_outlets_screen.dart';
+import 'notifications_screen.dart';
 import 'outlet_detail_screen.dart';
+import 'home_service_category_outlets_screen.dart';
+import 'home_service_outlet_screen.dart';
+import 'product_detail_screen.dart';
 import 'search_screen.dart';
+import 'shop_brand_page.dart';
+import 'cart_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key, required this.onOpenTab});
@@ -45,124 +54,11 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   bool _locationPromptShowing = false;
   bool _locationPromptShownOnce = false;
 
-  static const Map<String, dynamic> _fallbackHomeData = {
-    'featured_outlets': [
-      {
-        'id': 'baylen-premium-salon-lalpur',
-        'name': 'Baylen Premium Salon Lalpur',
-        'address_line1': '1st Floor Nucleus Mall Circular Road',
-        'area': 'Lalpur',
-        'city': 'Ranchi',
-        'state': 'Jharkhand',
-        'phone': '920000000000',
-        'opening_time': '10:00 AM',
-        'closing_time': '9:00 PM',
-        'rating': 4.7,
-        'review_count': 256,
-        'image_url': 'assets/branding/baylen-circular-logo.png',
-        'salon_category': 'Gold',
-        'latitude': 23.37820444,
-        'longitude': 85.33154667,
-        'distance_km': 0.0,
-        'availability': 'Open',
-        'google_maps_url': 'https://www.google.com/maps/dir/?api=1&destination=23.37820444,85.33154667&travelmode=walking',
-      },
-      {
-        'id': 'baylen-luxury-salon-main-road',
-        'name': 'Baylen Luxury Salon Main Road',
-        'address_line1': '2nd floor, Hotel YUVRAJ PALACE',
-        'area': 'Hindpiri',
-        'city': 'Ranchi',
-        'state': 'Jharkhand',
-        'phone': '920000000000',
-        'opening_time': '10:00 AM',
-        'closing_time': '9:00 PM',
-        'rating': 4.9,
-        'review_count': 512,
-        'image_url': 'assets/branding/baylen-circular-logo.png',
-        'salon_category': 'Luxury',
-        'latitude': 23.34602964,
-        'longitude': 85.32352455,
-        'distance_km': 0.0,
-        'availability': 'Open',
-        'google_maps_url': 'https://www.google.com/maps/dir/?api=1&destination=23.34602964,85.32352455&travelmode=walking',
-      },
-      {
-        'id': 'baylen-express-salon-kanke',
-        'name': 'Baylen Express Salon Kanke',
-        'address_line1': 'Opposite Rock Garden Kanke Road',
-        'area': 'Kanke',
-        'city': 'Ranchi',
-        'state': 'Jharkhand',
-        'phone': '920000000000',
-        'opening_time': '10:00 AM',
-        'closing_time': '9:00 PM',
-        'rating': 4.3,
-        'review_count': 94,
-        'image_url': 'assets/branding/baylen-circular-logo.png',
-        'salon_category': 'Bronze',
-        'latitude': 23.4008,
-        'longitude': 85.3274,
-        'distance_km': 0.0,
-        'availability': 'Open',
-        'google_maps_url': 'https://www.google.com/maps/dir/?api=1&destination=23.4008,85.3274&travelmode=walking',
-      },
-      {
-        'id': 'baylen-elite-salon-doranda',
-        'name': 'Baylen Elite Salon Doranda',
-        'address_line1': 'Near High Court Overbridge road',
-        'area': 'Doranda',
-        'city': 'Ranchi',
-        'state': 'Jharkhand',
-        'phone': '920000000000',
-        'opening_time': '10:00 AM',
-        'closing_time': '9:00 PM',
-        'rating': 4.8,
-        'review_count': 187,
-        'image_url': 'assets/branding/baylen-circular-logo.png',
-        'salon_category': 'Royal',
-        'latitude': 23.3375,
-        'longitude': 85.3228,
-        'distance_km': 0.0,
-        'availability': 'Open',
-        'google_maps_url': 'https://www.google.com/maps/dir/?api=1&destination=23.3375,85.3228&travelmode=walking',
-      },
-      {
-        'id': 'baylen-style-hub-bariatu',
-        'name': 'Baylen Style Hub Bariatu',
-        'address_line1': 'Near RIMS Medical College Road',
-        'area': 'Bariatu',
-        'city': 'Ranchi',
-        'state': 'Jharkhand',
-        'phone': '920000000000',
-        'opening_time': '10:00 AM',
-        'closing_time': '9:00 PM',
-        'rating': 4.5,
-        'review_count': 120,
-        'image_url': 'assets/branding/baylen-circular-logo.png',
-        'salon_category': 'Silver',
-        'latitude': 23.3894,
-        'longitude': 85.3552,
-        'distance_km': 0.0,
-        'availability': 'Open',
-        'google_maps_url': 'https://www.google.com/maps/dir/?api=1&destination=23.3894,85.3552&travelmode=walking',
-      },
-    ],
-    'beauty_categories': [
-      {'name': 'Hair', 'icon_key': 'hair'},
-      {'name': 'Skin', 'icon_key': 'skin'},
-      {'name': 'Nail', 'icon_key': 'nail'},
-      {'name': 'Makeup', 'icon_key': 'makeup'},
-      {'name': 'Spa', 'icon_key': 'spa'},
-    ],
-    'trending': [],
-    'brands': [],
-  };
-
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    AuthService.instance.user.addListener(_onAuthChanged);
     LocationService.instance.currentLocation.addListener(_onLocationChanged);
     LocationService.instance.isGpsDisabled.addListener(_onLocationStateChanged);
     LocationService.instance.isPermissionBlocked.addListener(
@@ -175,6 +71,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
+    AuthService.instance.user.removeListener(_onAuthChanged);
     LocationService.instance.currentLocation.removeListener(_onLocationChanged);
     LocationService.instance.isGpsDisabled.removeListener(
       _onLocationStateChanged,
@@ -190,6 +87,14 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     if (state == AppLifecycleState.resumed) {
       LocationService.instance.fetchCurrentLocation(force: true);
       _fetchNearbyOutlets(forceLocation: false);
+    }
+  }
+
+  void _onAuthChanged() {
+    if (AuthService.instance.user.value == null) {
+      NotificationService.instance.unreadCount.value = 0;
+    } else {
+      NotificationService.instance.refreshUnreadCount();
     }
   }
 
@@ -314,24 +219,25 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       _nearbyError = null;
     });
     try {
+      await LocationService.instance.refreshPermissionStatus();
       await LocationService.instance.fetchCurrentLocation(force: forceLocation);
       final loc = LocationService.instance.currentLocation.value;
       if (loc == null) {
-        throw Exception(
-          LocationService.instance.error.value ??
-              'Allow location to find nearby salons.',
-        );
+        final status = LocationService.instance.permissionStatus.value;
+        throw Exception(deviceLocationStatusMessage(status));
       }
+      final selectedLocation = loc;
       final outlets = await CatalystApi().nearbyOutlets(
-        lat: loc.latitude,
-        lng: loc.longitude,
+        lat: selectedLocation.latitude,
+        lng: selectedLocation.longitude,
+        city: selectedLocation.city,
       );
       if (mounted) {
         setState(() {
           _nearbyOutlets = outlets;
           _nearbyLoading = false;
-          _lastNearbyLat = loc.latitude;
-          _lastNearbyLng = loc.longitude;
+          _lastNearbyLat = selectedLocation.latitude;
+          _lastNearbyLng = selectedLocation.longitude;
         });
       }
     } catch (error) {
@@ -353,8 +259,10 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
 
     try {
       final api = CatalystApi();
-      _homeData = await api.homeFeed();
-      await _fetchNearbyOutlets(forceLocation: false);
+      final homeFuture = api.homeFeed();
+      final nearbyFuture = _fetchNearbyOutlets(forceLocation: false);
+      _homeData = await homeFuture;
+      await nearbyFuture;
       if (mounted) {
         setState(() {
           _loading = false;
@@ -363,13 +271,95 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     } catch (e) {
       if (mounted) {
         setState(() {
-          _homeData = _homeData.isEmpty ? _fallbackHomeData : _homeData;
-          _error = 'Live home data is temporarily unavailable. Showing saved Baylen content.';
+          _error =
+              'Live home data is temporarily unavailable. Pull to refresh or tap Retry.';
           _loading = false;
         });
       }
       await _fetchNearbyOutlets(forceLocation: false);
     }
+  }
+
+  BeautyCategory _beautyCategoryFromFeed(Map<String, dynamic> cat) {
+    final slug = cat['slug']?.toString().trim() ?? '';
+    final iconKey = cat['icon_key']?.toString().trim() ?? 'more';
+    final name = cat['name']?.toString().trim() ?? '';
+    if (slug.isNotEmpty) {
+      return BeautyCategory(slug: slug, name: name, iconKey: iconKey);
+    }
+    final normalized = iconKey.toLowerCase();
+    return BeautyCategory(
+      slug: normalized == 'nail' ? 'nails' : normalized,
+      name: name.isNotEmpty ? name : iconKey,
+      iconKey: iconKey,
+    );
+  }
+
+  void _openBeautyCategory(Map<String, dynamic> cat) {
+    final category = _beautyCategoryFromFeed(cat);
+    final location = LocationService.instance.currentLocation.value;
+    if (location == null || _nearbyOutlets.isEmpty) {
+      widget.onOpenTab(MainShell.homeServiceIndex);
+      return;
+    }
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => HomeServiceCategoryOutletsScreen(
+          category: category,
+          outlets: _nearbyOutlets,
+          onOutletSelected: (outlet) {
+            Navigator.of(context).push(
+              MaterialPageRoute<void>(
+                builder: (_) => HomeServiceOutletScreen(
+                  outlet: outlet,
+                  initialCategorySlug: category.slug,
+                ),
+              ),
+            );
+          },
+        ),
+      ),
+    );
+  }
+
+  Future<void> _openTrendingItem(Map<String, dynamic> item) async {
+    final type = item['type']?.toString().toLowerCase() ?? '';
+    final refId = item['reference_id']?.toString() ?? '';
+    if (type == 'product' && refId.isNotEmpty) {
+      try {
+        final detail = await CatalystApi().productDetail(refId);
+        if (!mounted) return;
+        await Navigator.of(context).push(
+          MaterialPageRoute<void>(
+            builder: (_) => ProductDetailScreen(product: detail.product),
+          ),
+        );
+      } catch (_) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Could not open this product.')),
+        );
+      }
+      return;
+    }
+    if (type == 'service') {
+      widget.onOpenTab(MainShell.salonIndex);
+      return;
+    }
+    widget.onOpenTab(MainShell.shopIndex);
+  }
+
+  void _openBrand(Map<String, dynamic> brand) {
+    final slug = brand['slug']?.toString().trim() ?? '';
+    if (slug.isEmpty) {
+      widget.onOpenTab(MainShell.shopIndex);
+      return;
+    }
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => ShopBrandPage(slug: slug),
+      ),
+    );
   }
 
   List<Map<String, dynamic>> _getList(String key) {
@@ -380,10 +370,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
 
   @override
   Widget build(BuildContext context) {
-    final fallbackNearbyOutlets = _featuredOutletsFallback();
-    final visibleNearbyOutlets = _nearbyOutlets.isEmpty
-        ? fallbackNearbyOutlets
-        : _nearbyOutlets;
+    final visibleNearbyOutlets = _nearbyOutlets;
 
     return Scaffold(
       backgroundColor: kHomeCanvas,
@@ -409,23 +396,37 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                         return ValueListenableBuilder(
                           valueListenable: CartService.instance.cartState,
                           builder: (context, cart, _) {
-                            return HomeHeader(
-                              locationCity: loc?.city ?? 'Select Location',
-                              locationArea: loc?.area ?? '',
-                              notificationCount: notifCount,
-                              cartCount: cart?.itemCount ?? 0,
-                              locationLoading: false,
-                              onLocationTap: () {
-                                LocationPickerSheet.show(
-                                  context,
-                                  onLocationSelected: _fetchNearbyOutlets,
+                            return ValueListenableBuilder<bool>(
+                              valueListenable: LocationService.instance.isLoading,
+                              builder: (context, locationLoading, _) {
+                                return HomeHeader(
+                                  locationCity: loc?.city ?? 'Select Location',
+                                  locationArea: loc?.area ?? '',
+                                  notificationCount: notifCount,
+                                  cartCount: cart?.itemCount ?? 0,
+                                  locationLoading: locationLoading,
+                                  onLocationTap: () {
+                                    LocationPickerSheet.show(
+                                      context,
+                                      onLocationSelected: _fetchNearbyOutlets,
+                                    );
+                                  },
+                                  onNotificationTap: () {
+                                    Navigator.of(context).push(
+                                      MaterialPageRoute<void>(
+                                        builder: (_) =>
+                                            const NotificationsScreen(),
+                                      ),
+                                    );
+                                  },
+                                  onCartTap: () {
+                                    Navigator.of(context).push(
+                                      MaterialPageRoute<void>(
+                                        builder: (_) => const CartScreen(),
+                                      ),
+                                    );
+                                  },
                                 );
-                              },
-                              onNotificationTap: () {
-                                // Navigate to notifications
-                              },
-                              onCartTap: () {
-                                // Navigate to cart
                               },
                             );
                           },
@@ -590,7 +591,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                   QuickAccess(
                     onBrowseServices: () =>
                         widget.onOpenTab(MainShell.salonIndex),
-                    onOffers: () {},
+                    onOffers: () => widget.onOpenTab(MainShell.shopIndex),
                     onShopping: () => widget.onOpenTab(MainShell.shopIndex),
                     onProducts: () => widget.onOpenTab(MainShell.shopIndex),
                     onFindSalon: () => widget.onOpenTab(MainShell.salonIndex),
@@ -622,7 +623,8 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                   ),
                   const SizedBox(height: 32),
                   ConsultationBookRow(
-                    onConsultation: () {},
+                    onConsultation: () =>
+                        widget.onOpenTab(MainShell.salonIndex),
                     onBookAppointment: () =>
                         widget.onOpenTab(MainShell.salonIndex),
                   ),
@@ -632,23 +634,26 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                     loading: _loading,
                     onViewAll: () =>
                         widget.onOpenTab(MainShell.homeServiceIndex),
-                    onCategoryTap: (cat) {},
+                    onCategoryTap: _openBeautyCategory,
                   ),
                   const SizedBox(height: 32),
                   TrendingSection(
                     items: _getList('trending'),
                     loading: _loading,
-                    onViewAll: () {},
-                    onItemTap: (item) {},
+                    onViewAll: () => widget.onOpenTab(MainShell.shopIndex),
+                    onItemTap: _openTrendingItem,
                   ),
                   const SizedBox(height: 32),
-                  CutColorVideosRow(onCutColor: () {}, onVideos: () {}),
+                  CutColorVideosRow(
+                    onCutColor: () => widget.onOpenTab(MainShell.salonIndex),
+                    onVideos: () => widget.onOpenTab(MainShell.shopIndex),
+                  ),
                   const SizedBox(height: 32),
                   BrandCollection(
                     brands: _getList('brands'),
                     loading: _loading,
                     onViewAll: () => widget.onOpenTab(MainShell.shopIndex),
-                    onBrandTap: (brand) {},
+                    onBrandTap: _openBrand,
                   ),
                   const SizedBox(height: 48),
                 ]),
@@ -660,7 +665,4 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     );
   }
 
-  List<SalonOutlet> _featuredOutletsFallback() {
-    return _getList('featured_outlets').map(SalonOutlet.fromJson).toList();
-  }
 }

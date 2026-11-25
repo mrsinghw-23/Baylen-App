@@ -3,6 +3,8 @@
 #
 
 list(APPEND FLUTTER_PLUGIN_LIST
+  camera_desktop
+  file_selector_linux
   url_launcher_linux
 )
 

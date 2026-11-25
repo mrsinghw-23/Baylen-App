@@ -1,0 +1,1 @@
+[runtime-config] AUTH_SESSION_SECRET is shorter than 32 characters — use a longer secret before Production

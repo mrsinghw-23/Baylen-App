@@ -1,0 +1,17 @@
+"use strict";
+
+/** PP-006 arrival + service OTP configuration (single source of truth). */
+
+const ARRIVAL_RADIUS_METERS = Number(process.env.PROFESSIONAL_ARRIVAL_RADIUS_METERS || 100);
+const ARRIVAL_MIN_ACCURACY_METERS = Number(
+  process.env.PROFESSIONAL_ARRIVAL_MIN_ACCURACY_METERS || 100
+);
+const OTP_RESEND_COOLDOWN_SECONDS = Number(
+  process.env.PROFESSIONAL_SERVICE_OTP_RESEND_COOLDOWN_SECONDS || 60
+);
+
+module.exports = {
+  ARRIVAL_RADIUS_METERS,
+  ARRIVAL_MIN_ACCURACY_METERS,
+  OTP_RESEND_COOLDOWN_SECONDS,
+};

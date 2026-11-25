@@ -2,7 +2,30 @@ const crypto = require("crypto");
 const fs = require("fs");
 const os = require("os");
 const path = require("path");
-const { asId, optionalText, rowOf, rowsOf, num, sendOk, sqlString } = require("../lib/http");
+const { seedTaxonomy } = require("../lib/taxonomy-seed");
+const { fetchAllTableRows } = require("../lib/paged");
+const { asId, optionalText, rowOf, rowsOf, num, sendOk, sqlString, isTruthy } = require("../lib/http");
+const { upsertProductMaster, upsertVariant } = require("../lib/catalog-products");
+const { upsertSearchDocument } = require("../lib/search-index");
+const {
+  upsertWarehouse,
+  listAdminWarehouses,
+  getAdminWarehouse,
+  setWarehouseStatus,
+} = require("../lib/warehouse-admin");
+const {
+  parseUploadRequestBody,
+  uploadValidatedBackupArtifact,
+} = require("../lib/backup-upload");
+const { normalizeEnvironment } = require("../lib/backup-env");
+const { normalizeFrequency } = require("../lib/backup-workdrive");
+const {
+  adminGetKyc,
+  adminApproveKyc,
+  adminRejectKyc,
+  downloadDocument,
+} = require("../lib/delivery-partner-kyc-engine");
+const { KYC_DOCUMENT_TYPES } = require("../lib/delivery-partner-kyc");
 
 const MAX_ADMIN_IMAGE_BYTES = 5 * 1024 * 1024;
 const MEDIA_TYPES = new Set(["product", "service", "outlet"]);
@@ -15,18 +38,30 @@ const IMAGE_CONTENT_TYPES = new Set([
 const SCHEMA_CHECKS = [
   ["Categories", ["name", "slug", "description", "category_type", "image_url", "display_order", "is_active"]],
   ["Brands", ["name", "slug", "logo_url", "banner_url", "description", "rating", "review_count", "is_active"]],
-  ["Products", ["name", "slug", "sku", "brand_id", "category_id", "product_type", "short_description", "description", "mrp", "selling_price", "currency", "tax_percent", "thumbnail_url", "has_variants", "is_featured", "status"]],
-  ["Product_Variants", ["product_id", "sku", "variant_name", "variant_value", "mrp", "selling_price", "currency", "is_active"]],
+  ["Products", ["name", "slug", "sku", "product_code", "brand_id", "category_id", "product_type", "short_description", "description", "mrp", "selling_price", "cost_price", "currency", "tax_percent", "thumbnail_url", "has_variants", "is_featured", "status", "gender", "age_group", "seo_title", "seo_description", "search_keywords", "visibility", "quick_commerce_enabled", "ecommerce_enabled", "quick_commerce_restriction_reason"]],
+  ["Product_Variants", ["product_id", "sku", "variant_name", "variant_value", "variant_code", "barcode", "ean", "upc", "gtin", "size_label", "color_name", "shade", "finish", "mrp", "selling_price", "cost_price", "currency", "is_active"]],
   ["Product_Media", ["product_id", "variant_id", "media_type", "file_url", "display_order", "is_active"]],
+  ["Product_Categories", ["product_id", "category_id", "is_primary", "is_active", "display_order"]],
+  ["Product_Tags", ["product_id", "tag_category_id", "tag_name", "is_active"]],
+  ["Product_Concerns", ["product_id", "concern_category_id", "concern_name", "is_active"]],
+  ["Product_Skin_Types", ["product_id", "skin_type_category_id", "skin_type_name", "is_active"]],
+  ["Product_Hair_Types", ["product_id", "hair_type_category_id", "hair_type_name", "is_active"]],
+  ["Product_Fragrance_Families", ["product_id", "fragrance_category_id", "fragrance_name", "is_active"]],
+  ["Product_Ingredients", ["product_id", "ingredient_category_id", "ingredient_name", "is_active"]],
+  ["Product_Attributes", ["product_id", "variant_id", "attr_key", "attr_value", "is_filterable", "is_active"]],
+  ["Import_Jobs", ["filename", "uploaded_by", "mode", "status", "total_rows", "valid_rows", "invalid_rows", "created_rows", "updated_rows", "failed_rows", "progress_percent", "is_active"]],
+  ["Import_Job_Rows", ["job_id", "row_number", "sku", "product_code", "action", "status", "payload_json"]],
+  ["Import_Errors", ["job_id", "row_number", "sku", "field_name", "error_code", "error_message", "severity"]],
+  ["Search_Documents", ["product_id", "product_name", "slug", "sku_list", "brand_name", "category_names", "document_text", "status", "selling_price", "is_active"]],
   ["Home_Banners", ["title", "subtitle", "image_url", "video_url", "action_type", "action_value", "display_order", "is_active"]],
   ["Launch_Promos", ["title", "subtitle", "body", "image_url", "video_url", "button_label", "secondary_button_label", "action_type", "action_value", "audience", "show_once", "start_date", "end_date", "display_order", "is_active"]],
   ["Onboarding_Slides", ["title", "subtitle", "body", "image_url", "video_url", "button_label", "secondary_button_label", "action_type", "action_value", "audience", "show_once", "start_date", "end_date", "display_order", "is_active"]],
   ["User_Profiles", ["user_id", "full_name", "mobile", "email", "gender", "date_of_birth", "profile_photo_url", "default_address_id", "loyalty_tier", "loyalty_points", "is_active"]],
   ["Addresses", ["user_id", "label", "full_name", "phone", "line1", "line2", "city", "state", "postal_code", "country", "latitude", "longitude", "is_default", "is_active"]],
   ["Devices", ["user_id", "device_id", "device_type", "platform", "os_version", "app_version", "push_token", "last_active_at", "is_active"]],
-  ["Warehouses", ["name", "code", "outlet_id", "address_line1", "city", "state", "is_active"]],
-  ["Inventory", ["warehouse_id", "product_id", "variant_id", "quantity_on_hand", "quantity_reserved", "status", "is_active"]],
-  ["Stock_Movements", ["inventory_id", "warehouse_id", "product_id", "variant_id", "movement_type", "quantity", "reference_type", "reference_id", "notes"]],
+  ["Warehouses", ["name", "code", "outlet_id", "address_line1", "city", "state", "is_active", "is_default"]],
+  ["Inventory", ["warehouse_id", "product_id", "variant_id", "quantity_on_hand", "quantity_reserved", "quantity_committed", "quantity_in_transit", "quantity_damaged", "reorder_level", "safety_stock", "reorder_quantity", "status", "is_active"]],
+  ["Stock_Movements", ["inventory_id", "warehouse_id", "product_id", "variant_id", "movement_type", "quantity", "before_quantity", "after_quantity", "reference_type", "reference_id", "notes", "performed_by", "reason"]],
   ["Carts", ["user_id", "guest_session_id", "status", "currency", "coupon_code", "discount_amount", "is_active"]],
   ["Cart_Items", ["cart_id", "product_id", "variant_id", "quantity", "unit_mrp", "unit_price", "is_active"]],
   ["Wishlist", ["user_id", "guest_session_id", "product_id", "variant_id", "is_active"]],
@@ -233,6 +268,15 @@ function contentTypeFromName(fileName) {
   }
   if (ext === ".gif") {
     return "image/gif";
+  }
+  if (ext === ".mp4") {
+    return "video/mp4";
+  }
+  if (ext === ".webm") {
+    return "video/webm";
+  }
+  if (ext === ".mov") {
+    return "video/quicktime";
   }
   return "application/octet-stream";
 }
@@ -450,18 +494,45 @@ function productPayload(body) {
 }
 
 async function upsertProduct(req, body) {
-  const payload = productPayload(body);
-  let rowId = body.id ? asId(body.id, "id") : "";
-  if (rowId) {
-    await req.catalystApp.datastore().table("Products").updateRow({
-      ROWID: rowId,
-      ...payload,
+  const input = {
+    ...(body || {}),
+    product_name: body.product_name || body.name,
+    image_1: body.image_1 || body.thumbnail_url,
+  };
+  const product = await upsertProductMaster(req.catalystApp, input);
+  if (body.sku) {
+    await upsertVariant(req.catalystApp, product.id, {
+      id: body.variant_id || null,
+      sku: body.sku,
+      variant_name: body.variant_name,
+      size: body.size,
+      unit: body.unit,
+      volume: body.volume,
+      weight: body.weight,
+      color: body.color,
+      color_hex: body.color_hex,
+      shade: body.shade,
+      finish: body.finish,
+      barcode: body.barcode,
+      ean: body.ean,
+      upc: body.upc,
+      gtin: body.gtin,
+      mrp: body.mrp,
+      selling_price: body.selling_price,
+      cost_price: body.cost_price,
+      tax_percent: body.tax_percent,
+      currency: body.currency,
+      status: body.status,
+      is_default: body.is_default,
+      image_1: body.image_1 || body.thumbnail_url,
     });
-    return { id: rowId, action: "updated" };
   }
-  const inserted = await req.catalystApp.datastore().table("Products").insertRow(payload);
-  rowId = String(inserted.ROWID || inserted.rowid || "");
-  return { id: rowId, action: "created" };
+  try {
+    await upsertSearchDocument(req.catalystApp, product.id);
+  } catch (_) {
+    // Search index refresh is best-effort; product write already succeeded.
+  }
+  return product;
 }
 
 function servicePayload(body) {
@@ -1210,12 +1281,19 @@ function adminRoutes(app) {
         "PLACED",
         "CONFIRMED",
         "PROCESSING",
+        "STORE_ASSIGNED",
+        "PICKING",
         "PACKED",
+        "RIDER_SEARCHING",
+        "RIDER_ASSIGNED",
+        "PICKED_UP",
         "SHIPPED",
         "OUT_FOR_DELIVERY",
         "DELIVERED",
         "COMPLETED",
         "CANCELLED",
+        "PARTIALLY_FULFILLED",
+        "REFUND_PENDING",
         "RETURN_REQUESTED",
         "RETURN_APPROVED",
         "REFUNDED",
@@ -1340,6 +1418,49 @@ function adminRoutes(app) {
         file_name: file.file_name,
       });
       sendOk(res, { file });
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  app.post("/v1/admin/backup/upload", async (req, res, next) => {
+    try {
+      requireAdmin(req);
+      const parsed = parseUploadRequestBody(req);
+      const environment = optionalText(parsed.environment, "environment", 40);
+      if (!environment) {
+        const error = new Error("environment is required");
+        error.status = 400;
+        error.code = "ENV_REQUIRED";
+        throw error;
+      }
+      normalizeEnvironment(environment);
+      const frequency = normalizeFrequency(parsed.frequency || "daily");
+      if (!parsed.artifactBuffer || !parsed.artifactBuffer.length) {
+        const error = new Error(
+          "artifact_base64 (JSON) or raw encrypted .baylen-backup body is required"
+        );
+        error.status = 400;
+        error.code = "BACKUP_ARTIFACT_MISSING";
+        throw error;
+      }
+      const upload = await uploadValidatedBackupArtifact({
+        app: req.catalystApp,
+        artifactBuffer: parsed.artifactBuffer,
+        environment,
+        frequency,
+        projectId: process.env.CATALYST_PROJECT_ID || undefined,
+      });
+      await writeAuditLog(req, "UPLOAD", "BACKUP_ARTIFACT", upload.workdrive_resource_id, null, {
+        environment: upload.environment,
+        frequency: upload.frequency,
+        folder_id: upload.folder_id,
+        file_name: upload.file_name,
+        backup_id: upload.backup_id,
+        total_rows: upload.total_rows,
+        duplicate_renamed: upload.duplicate_renamed,
+      });
+      sendOk(res, { upload });
     } catch (error) {
       next(error);
     }
@@ -1532,15 +1653,11 @@ function adminRoutes(app) {
   app.post("/v1/admin/products/bulk", async (req, res, next) => {
     try {
       requireAdmin(req);
-      const records = csvObjects(req.body.csv_text);
-      const result = await bulkImport(records, (record) => upsertProduct(req, record));
-      await writeAuditLog(req, "BULK_IMPORT", "PRODUCT", null, null, {
-        total: result.total,
-        created: result.created,
-        updated: result.updated,
-        failed: result.failed,
-      });
-      sendOk(res, { import: result });
+      const error = new Error(
+        "Deprecated. Use POST /v1/admin/imports/preview then POST /v1/admin/imports with confirm=true for production bulk import"
+      );
+      error.status = 410;
+      throw error;
     } catch (error) {
       next(error);
     }
@@ -1753,6 +1870,74 @@ function adminRoutes(app) {
     }
   });
 
+  app.get("/v1/admin/warehouses", async (req, res, next) => {
+    try {
+      requireAdmin(req);
+      const activeOnly = req.query.active === "true" || req.query.active_only === "true";
+      const warehouses = await listAdminWarehouses(req.catalystApp, { activeOnly });
+      sendOk(res, { warehouses });
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  app.get("/v1/admin/warehouse", async (req, res, next) => {
+    try {
+      requireAdmin(req);
+      const warehouseId = asId(req.query.id || req.query.warehouse_id, "id");
+      const warehouse = await getAdminWarehouse(req.catalystApp, warehouseId);
+      sendOk(res, { warehouse });
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  app.post("/v1/admin/warehouse/upsert", async (req, res, next) => {
+    try {
+      requireAdmin(req);
+      const before =
+        req.body.id || req.body.warehouse_id
+          ? await getAdminWarehouse(
+              req.catalystApp,
+              asId(req.body.warehouse_id || req.body.id, "warehouse_id")
+            ).catch(() => null)
+          : null;
+      const result = await upsertWarehouse(req.catalystApp, req.body || {});
+      await writeAuditLog(
+        req,
+        result.action === "updated" ? "UPDATED" : "CREATED",
+        "WAREHOUSE",
+        result.warehouse.id,
+        before,
+        result.warehouse
+      );
+      sendOk(res, result);
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  app.post("/v1/admin/warehouse/status", async (req, res, next) => {
+    try {
+      requireAdmin(req);
+      const warehouseId = asId(req.body.id || req.body.warehouse_id, "id");
+      const active = boolValue(req.body.active ?? req.body.is_active, true);
+      const before = await getAdminWarehouse(req.catalystApp, warehouseId);
+      const warehouse = await setWarehouseStatus(req.catalystApp, warehouseId, active);
+      await writeAuditLog(
+        req,
+        active ? "ACTIVATE" : "DEACTIVATE",
+        "WAREHOUSE",
+        warehouseId,
+        before,
+        warehouse
+      );
+      sendOk(res, { warehouse });
+    } catch (error) {
+      next(error);
+    }
+  });
+
   app.get("/v1/admin/service-jobs", async (req, res, next) => {
     try {
       requireAdmin(req);
@@ -1900,6 +2085,333 @@ function adminRoutes(app) {
       next(error);
     }
   });
+
+  app.post("/v1/admin/taxonomy/seed", async (req, res, next) => {
+    try {
+      requireAdmin(req);
+      const result = await seedTaxonomy(req.catalystApp);
+      await writeAuditLog(req, "TAXONOMY_SEED", "Categories", "", null, result.stats);
+      sendOk(res, result);
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  app.get("/v1/admin/taxonomy", async (req, res, next) => {
+    try {
+      requireAdmin(req);
+      const categories = await fetchAllTableRows(req.catalystApp, "Categories");
+      sendOk(res, {
+        count: categories.length,
+        categories: categories.map((row) => ({
+          id: String(row.ROWID),
+          name: row.name,
+          slug: row.slug,
+          type: row.category_type,
+          parent_id: row.parent_category_id ? String(row.parent_category_id) : null,
+          status: isTruthy(row.is_active) ? "published" : "hidden",
+          display_order: Number(row.display_order || 0),
+        })),
+      });
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  app.post("/v1/admin/categories", async (req, res, next) => {
+    try {
+      requireAdmin(req);
+      const name = optionalText(req.body?.name, "name", 100);
+      const slug = optionalText(req.body?.slug, "slug", 120) || String(name || "").toLowerCase().replace(/[^a-z0-9]+/g, "-");
+      if (!name) {
+        const error = new Error("name is required");
+        error.status = 400;
+        throw error;
+      }
+      const inserted = await req.catalystApp.datastore().table("Categories").insertRow({
+        name,
+        slug,
+        description: optionalText(req.body?.description, "description", 255),
+        category_type: optionalText(req.body?.category_type, "category_type", 30) || "PRODUCT",
+        parent_category_id: req.body?.parent_id ? asId(req.body.parent_id, "parent_id") : null,
+        image_url: optionalText(req.body?.image_url, "image_url", 255),
+        display_order: num(req.body?.display_order),
+        is_active: req.body?.status === "hidden" ? "false" : "true",
+      });
+      await writeAuditLog(req, "CREATE_CATEGORY", "Categories", inserted.ROWID, null, { name, slug });
+      sendOk(res, { id: String(inserted.ROWID || inserted.rowid || ""), slug });
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  app.post("/v1/admin/categories/update", async (req, res, next) => {
+    try {
+      requireAdmin(req);
+      const id = asId(req.body?.id, "id");
+      const payload = { ROWID: id };
+      if (req.body?.name !== undefined) payload.name = optionalText(req.body.name, "name", 100);
+      if (req.body?.slug !== undefined) payload.slug = optionalText(req.body.slug, "slug", 120);
+      if (req.body?.description !== undefined) payload.description = optionalText(req.body.description, "description", 255);
+      if (req.body?.category_type !== undefined) payload.category_type = optionalText(req.body.category_type, "category_type", 30);
+      if (req.body?.parent_id !== undefined) {
+        payload.parent_category_id = req.body.parent_id ? asId(req.body.parent_id, "parent_id") : null;
+      }
+      if (req.body?.display_order !== undefined) payload.display_order = num(req.body.display_order);
+      if (req.body?.status !== undefined) payload.is_active = req.body.status === "published" ? "true" : "false";
+      if (req.body?.is_active !== undefined) payload.is_active = req.body.is_active ? "true" : "false";
+      await req.catalystApp.datastore().table("Categories").updateRow(payload);
+      await writeAuditLog(req, "UPDATE_CATEGORY", "Categories", id, null, payload);
+      sendOk(res, { id, updated: true });
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  app.post("/v1/admin/categories/disable", async (req, res, next) => {
+    try {
+      requireAdmin(req);
+      const id = asId(req.body?.id, "id");
+      await req.catalystApp.datastore().table("Categories").updateRow({
+        ROWID: id,
+        is_active: "false",
+      });
+      await writeAuditLog(req, "DISABLE_CATEGORY", "Categories", id, null, { is_active: false });
+      sendOk(res, { id, status: "hidden" });
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  app.post("/v1/admin/search-synonyms", async (req, res, next) => {
+    try {
+      requireAdmin(req);
+      const term = optionalText(req.body?.term, "term", 150);
+      const mapsTo = optionalText(req.body?.maps_to, "maps_to", 150);
+      if (!term || !mapsTo) {
+        const error = new Error("term and maps_to are required");
+        error.status = 400;
+        throw error;
+      }
+      const inserted = await req.catalystApp.datastore().table("Categories").insertRow({
+        name: term,
+        slug: "syn-" + term.toLowerCase().replace(/[^a-z0-9]+/g, "-"),
+        description: mapsTo.toLowerCase().replace(/[^a-z0-9]+/g, "-"),
+        category_type: "SYNONYM",
+        display_order: 0,
+        is_active: "true",
+      });
+      sendOk(res, { id: String(inserted.ROWID || inserted.rowid || ""), term, maps_to: mapsTo });
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  app.post("/v1/admin/trending-searches", async (req, res, next) => {
+    try {
+      requireAdmin(req);
+      const query = optionalText(req.body?.query, "query", 150);
+      if (!query) {
+        const error = new Error("query is required");
+        error.status = 400;
+        throw error;
+      }
+      const parentSlug = optionalText(req.body?.menu_slug, "menu_slug", 120);
+      let parentId = null;
+      if (parentSlug) {
+        const categories = await fetchAllTableRows(req.catalystApp, "Categories");
+        const parent = categories.find((row) => String(row.slug) === parentSlug);
+        parentId = parent ? parent.ROWID : null;
+      }
+      const inserted = await req.catalystApp.datastore().table("Categories").insertRow({
+        name: query,
+        slug: "trend-" + query.toLowerCase().replace(/[^a-z0-9]+/g, "-"),
+        description: query,
+        category_type: "TRENDING",
+        parent_category_id: parentId,
+        display_order: num(req.body?.display_order),
+        is_active: "true",
+      });
+      sendOk(res, { id: String(inserted.ROWID || inserted.rowid || ""), query });
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  app.get("/v1/admin/delivery-partners/:id/kyc", async (req, res, next) => {
+    try {
+      requireAdmin(req);
+      const deliveryPartnerId = optionalText(req.params.id, "delivery_partner_id", 40);
+      const payload = await adminGetKyc(req, deliveryPartnerId);
+      sendOk(res, payload);
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  app.post("/v1/admin/delivery-partners/:id/kyc/approve", async (req, res, next) => {
+    try {
+      requireAdmin(req);
+      const deliveryPartnerId = optionalText(req.params.id, "delivery_partner_id", 40);
+      const payload = await adminApproveKyc(req, deliveryPartnerId, adminActor(req));
+      await writeAuditLog(req, "KYC_APPROVE", "Delivery_Partners", deliveryPartnerId, null, {
+        partner_status: payload.partner_status,
+      });
+      sendOk(res, payload);
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  app.post("/v1/admin/delivery-partners/:id/kyc/reject", async (req, res, next) => {
+    try {
+      requireAdmin(req);
+      const deliveryPartnerId = optionalText(req.params.id, "delivery_partner_id", 40);
+      const payload = await adminRejectKyc(
+        req,
+        deliveryPartnerId,
+        adminActor(req),
+        req.body?.rejection_reason || req.body?.reason
+      );
+      await writeAuditLog(req, "KYC_REJECT", "Delivery_Partners", deliveryPartnerId, null, {
+        partner_status: payload.partner_status,
+        rejection_reason: payload.kyc?.rejection_reason || "",
+      });
+      sendOk(res, payload);
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  app.get("/v1/admin/delivery-partners/:id/kyc/documents/:documentType", async (req, res, next) => {
+    try {
+      requireAdmin(req);
+      const deliveryPartnerId = optionalText(req.params.id, "delivery_partner_id", 40);
+      const documentType = String(req.params.documentType || "").trim().toLowerCase();
+      if (!KYC_DOCUMENT_TYPES.has(documentType)) {
+        const error = new Error("Invalid document type");
+        error.status = 400;
+        throw error;
+      }
+      if (documentType === "profile_photo") {
+        const { streamPartnerProfilePhoto } = require("../lib/delivery-partner-photo");
+        const { parseDeliveryPartnerId } = require("../lib/delivery-partner");
+        await streamPartnerProfilePhoto(req, res, parseDeliveryPartnerId(deliveryPartnerId), {
+          admin: true,
+        });
+        return;
+      }
+      const file = await downloadDocument(req, null, documentType, {
+        admin: true,
+        targetPartnerId: deliveryPartnerId,
+      });
+      res.setHeader("Content-Type", "application/octet-stream");
+      res.setHeader("Cache-Control", "private, no-store");
+      res.status(200).send(file.buffer);
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  app.post("/v1/admin/professional-jobs/:jobId/dispatch", async (req, res, next) => {
+    try {
+      requireAdmin(req);
+      const jobId = asId(req.params.jobId, "professional_job_id");
+      const { dispatchProfessionalJob } = require("../lib/professional-dispatch-engine");
+      const result = await dispatchProfessionalJob(req.catalystApp, jobId, { req });
+      sendOk(res, result);
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  app.post("/v1/admin/professional-jobs/dispatch-pending", async (req, res, next) => {
+    try {
+      requireAdmin(req);
+      const limit = num(req.body?.limit) || 20;
+      const { dispatchPendingJobs } = require("../lib/professional-dispatch-engine");
+      const results = await dispatchPendingJobs(req.catalystApp, limit, req);
+      sendOk(res, { results, total: results.length });
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  app.post("/v1/admin/professional-jobs/process-expired-offers", async (req, res, next) => {
+    try {
+      requireAdmin(req);
+      const limit = num(req.body?.limit) || 20;
+      const { processExpiredProfessionalOffers } = require("../lib/professional-job-offer-engine");
+      const results = await processExpiredProfessionalOffers(req.catalystApp, limit, req);
+      sendOk(res, { results, total: results.length });
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  app.get("/v1/admin/salesiq/debug", async (req, res, next) => {
+    try {
+      requireAdmin(req);
+      const { dumpMobileChannels } = require("../lib/salesiq-client");
+      sendOk(res, await dumpMobileChannels(req));
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  app.post("/v1/admin/salesiq/mobile-keys/provision", async (req, res, next) => {
+    try {
+      requireAdmin(req);
+      const {
+        readMobileKeys,
+        ensureMobileKeys,
+        fixMobileInstallation,
+        dumpMobileChannels,
+      } = require("../lib/salesiq-client");
+      if (req.body?.debug) {
+        sendOk(res, await dumpMobileChannels(req));
+        return;
+      }
+      if (req.body?.enable) {
+        const { enableMobileChannels } = require("../lib/salesiq-client");
+        sendOk(res, await enableMobileChannels(req));
+        return;
+      }
+      const keys = req.body?.fix
+        ? await fixMobileInstallation(req)
+        : req.body?.rotate
+          ? await ensureMobileKeys(req, undefined, { rotate: true })
+          : await readMobileKeys(req);
+      sendOk(res, {
+        configured: Boolean(
+          keys.android?.appKey &&
+            keys.android?.accessKey &&
+            keys.ios?.appKey &&
+            keys.ios?.accessKey
+        ),
+        bundle_id: keys.expectedAndroidBundle,
+        keys: {
+          android: {
+            appKey: keys.android?.appKey || "",
+            accessKey: keys.android?.accessKey || "",
+            source: keys.android?.source || "",
+            registeredBundle: keys.android?.registeredBundle || "",
+            bundleMatch: keys.android?.bundleMatch === true,
+          },
+          ios: {
+            appKey: keys.ios?.appKey || "",
+            accessKey: keys.ios?.accessKey || "",
+            source: keys.ios?.source || "",
+            registeredBundle: keys.ios?.registeredBundle || "",
+            bundleMatch: keys.ios?.bundleMatch === true,
+          },
+        },
+      });
+    } catch (error) {
+      next(error);
+    }
+  });
 }
 
 module.exports = adminRoutes;
+module.exports.requireAdmin = requireAdmin;

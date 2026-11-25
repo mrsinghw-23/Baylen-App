@@ -612,6 +612,18 @@
     "target_id": "36851000000291764"
   },
   {
+    "name": "location-pincode",
+    "source_endpoint": "/v1/location/pincode",
+    "target_endpoint": "/server/baylen-api/v1/location/pincode",
+    "target": "advancedio",
+    "method": "ANY",
+    "throttling": {
+      "overall": {},
+      "ip": {}
+    },
+    "target_id": "36851000000291764"
+  },
+  {
     "name": "address-remove",
     "source_endpoint": "/v1/address/remove",
     "target_endpoint": "/server/baylen-api/v1/address/remove",
@@ -1092,9 +1104,69 @@
     "target_id": "36851000000291764"
   },
   {
+    "name": "admin-warehouses-list",
+    "source_endpoint": "/v1/admin/warehouses",
+    "target_endpoint": "/server/baylen-api/v1/admin/warehouses",
+    "target": "advancedio",
+    "method": "ANY",
+    "throttling": {
+      "overall": {},
+      "ip": {}
+    },
+    "target_id": "36851000000291764"
+  },
+  {
+    "name": "admin-warehouse-get",
+    "source_endpoint": "/v1/admin/warehouse",
+    "target_endpoint": "/server/baylen-api/v1/admin/warehouse",
+    "target": "advancedio",
+    "method": "ANY",
+    "throttling": {
+      "overall": {},
+      "ip": {}
+    },
+    "target_id": "36851000000291764"
+  },
+  {
+    "name": "admin-warehouse-upsert",
+    "source_endpoint": "/v1/admin/warehouse/upsert",
+    "target_endpoint": "/server/baylen-api/v1/admin/warehouse/upsert",
+    "target": "advancedio",
+    "method": "ANY",
+    "throttling": {
+      "overall": {},
+      "ip": {}
+    },
+    "target_id": "36851000000291764"
+  },
+  {
+    "name": "admin-warehouse-status",
+    "source_endpoint": "/v1/admin/warehouse/status",
+    "target_endpoint": "/server/baylen-api/v1/admin/warehouse/status",
+    "target": "advancedio",
+    "method": "ANY",
+    "throttling": {
+      "overall": {},
+      "ip": {}
+    },
+    "target_id": "36851000000291764"
+  },
+  {
     "name": "admin-files-upload",
     "source_endpoint": "/v1/admin/files/upload",
     "target_endpoint": "/server/baylen-api/v1/admin/files/upload",
+    "target": "advancedio",
+    "method": "ANY",
+    "throttling": {
+      "overall": {},
+      "ip": {}
+    },
+    "target_id": "36851000000291764"
+  },
+  {
+    "name": "admin-backup-upload",
+    "source_endpoint": "/v1/admin/backup/upload",
+    "target_endpoint": "/server/baylen-api/v1/admin/backup/upload",
     "target": "advancedio",
     "method": "ANY",
     "throttling": {
@@ -1440,6 +1512,162 @@
     "target_id": "36851000000291764"
   },
   {
+    "name": "admin-inventory-import-template",
+    "source_endpoint": "/v1/admin/inventory/import/template",
+    "target_endpoint": "/server/baylen-api/v1/admin/inventory/import/template",
+    "target": "advancedio",
+    "method": "ANY",
+    "throttling": {
+      "overall": {},
+      "ip": {}
+    },
+    "target_id": "36851000000291764"
+  },
+  {
+    "name": "admin-inventory-import-preview",
+    "source_endpoint": "/v1/admin/inventory/import/preview",
+    "target_endpoint": "/server/baylen-api/v1/admin/inventory/import/preview",
+    "target": "advancedio",
+    "method": "ANY",
+    "throttling": {
+      "overall": {},
+      "ip": {}
+    },
+    "target_id": "36851000000291764"
+  },
+  {
+    "name": "admin-inventory-import",
+    "source_endpoint": "/v1/admin/inventory/import",
+    "target_endpoint": "/server/baylen-api/v1/admin/inventory/import",
+    "target": "advancedio",
+    "method": "ANY",
+    "throttling": {
+      "overall": {},
+      "ip": {}
+    },
+    "target_id": "36851000000291764"
+  },
+  {
+    "name": "admin-inventory-import-job-get",
+    "source_endpoint": "/v1/admin/inventory/import/job",
+    "target_endpoint": "/server/baylen-api/v1/admin/inventory/import/job",
+    "target": "advancedio",
+    "method": "ANY",
+    "throttling": {
+      "overall": {},
+      "ip": {}
+    },
+    "target_id": "36851000000291764"
+  },
+  {
+    "name": "admin-inventory-import-job-retry",
+    "source_endpoint": "/v1/admin/inventory/import/job/retry",
+    "target_endpoint": "/server/baylen-api/v1/admin/inventory/import/job/retry",
+    "target": "advancedio",
+    "method": "ANY",
+    "throttling": {
+      "overall": {},
+      "ip": {}
+    },
+    "target_id": "36851000000291764"
+  },
+  {
+    "name": "admin-inventory-import-worker-process",
+    "source_endpoint": "/v1/admin/inventory/import/worker/process",
+    "target_endpoint": "/server/baylen-api/v1/admin/inventory/import/worker/process",
+    "target": "advancedio",
+    "method": "ANY",
+    "throttling": {
+      "overall": {},
+      "ip": {}
+    },
+    "target_id": "36851000000291764"
+  },
+  {
+    "name": "admin-inventory-duplicate-scan",
+    "source_endpoint": "/v1/admin/inventory/duplicate-scan",
+    "target_endpoint": "/server/baylen-api/v1/admin/inventory/duplicate-scan",
+    "target": "advancedio",
+    "method": "ANY",
+    "throttling": {
+      "overall": {},
+      "ip": {}
+    },
+    "target_id": "36851000000291764"
+  },
+  {
+    "name": "admin-inventory-low-stock",
+    "source_endpoint": "/v1/admin/inventory/low-stock",
+    "target_endpoint": "/server/baylen-api/v1/admin/inventory/low-stock",
+    "target": "advancedio",
+    "method": "ANY",
+    "throttling": {
+      "overall": {},
+      "ip": {}
+    },
+    "target_id": "36851000000291764"
+  },
+  {
+    "name": "admin-inventory-low-stock-summary",
+    "source_endpoint": "/v1/admin/inventory/low-stock/summary",
+    "target_endpoint": "/server/baylen-api/v1/admin/inventory/low-stock/summary",
+    "target": "advancedio",
+    "method": "ANY",
+    "throttling": {
+      "overall": {},
+      "ip": {}
+    },
+    "target_id": "36851000000291764"
+  },
+  {
+    "name": "admin-serviceability-regions",
+    "source_endpoint": "/v1/admin/serviceability/regions",
+    "target_endpoint": "/server/baylen-api/v1/admin/serviceability/regions",
+    "target": "advancedio",
+    "method": "ANY",
+    "throttling": {
+      "overall": {},
+      "ip": {}
+    },
+    "target_id": "36851000000291764"
+  },
+  {
+    "name": "admin-serviceability-region",
+    "source_endpoint": "/v1/admin/serviceability/region",
+    "target_endpoint": "/server/baylen-api/v1/admin/serviceability/region",
+    "target": "advancedio",
+    "method": "ANY",
+    "throttling": {
+      "overall": {},
+      "ip": {}
+    },
+    "target_id": "36851000000291764"
+  },
+  {
+    "name": "admin-serviceability-region-upsert",
+    "source_endpoint": "/v1/admin/serviceability/region/upsert",
+    "target_endpoint": "/server/baylen-api/v1/admin/serviceability/region/upsert",
+    "target": "advancedio",
+    "method": "ANY",
+    "throttling": {
+      "overall": {},
+      "ip": {}
+    },
+    "target_id": "36851000000291764"
+  },
+  {
+    "name": "admin-serviceability-region-deactivate",
+    "source_endpoint": "/v1/admin/serviceability/region/deactivate",
+    "target_endpoint": "/server/baylen-api/v1/admin/serviceability/region/deactivate",
+    "target": "advancedio",
+    "method": "ANY",
+    "throttling": {
+      "overall": {},
+      "ip": {}
+    },
+    "target_id": "36851000000291764"
+  },
+  {
     "name": "admin-exports-products",
     "source_endpoint": "/v1/admin/exports/products",
     "target_endpoint": "/server/baylen-api/v1/admin/exports/products",
@@ -1683,6 +1911,1098 @@
     "name": "admin-salon-booking-test-whatsapp",
     "source_endpoint": "/v1/admin/salon/booking/test-whatsapp",
     "target_endpoint": "/server/baylen-api/v1/admin/salon/booking/test-whatsapp",
+    "target": "advancedio",
+    "method": "ANY",
+    "throttling": {
+      "overall": {},
+      "ip": {}
+    },
+    "target_id": "36851000000291764"
+  },
+  {
+    "name": "admin-order-test-whatsapp",
+    "source_endpoint": "/v1/admin/order/test-whatsapp",
+    "target_endpoint": "/server/baylen-api/v1/admin/order/test-whatsapp",
+    "target": "advancedio",
+    "method": "ANY",
+    "throttling": {
+      "overall": {},
+      "ip": {}
+    },
+    "target_id": "36851000000291764"
+  },
+  {
+    "name": "admin-order-resend-whatsapp",
+    "source_endpoint": "/v1/admin/order/resend-whatsapp",
+    "target_endpoint": "/server/baylen-api/v1/admin/order/resend-whatsapp",
+    "target": "advancedio",
+    "method": "ANY",
+    "throttling": {
+      "overall": {},
+      "ip": {}
+    },
+    "target_id": "36851000000291764"
+  },
+  {
+    "name": "at-home-beauty-serviceability",
+    "source_endpoint": "/v1/at-home-beauty/serviceability",
+    "target_endpoint": "/server/baylen-api/v1/at-home-beauty/serviceability",
+    "target": "advancedio",
+    "method": "ANY",
+    "throttling": {
+      "overall": {},
+      "ip": {}
+    },
+    "target_id": "36851000000291764"
+  },
+  {
+    "name": "at-home-beauty-addons",
+    "source_endpoint": "/v1/at-home-beauty/addons",
+    "target_endpoint": "/server/baylen-api/v1/at-home-beauty/addons",
+    "target": "advancedio",
+    "method": "ANY",
+    "throttling": {
+      "overall": {},
+      "ip": {}
+    },
+    "target_id": "36851000000291764"
+  },
+  {
+    "name": "at-home-beauty-slots",
+    "source_endpoint": "/v1/at-home-beauty/slots",
+    "target_endpoint": "/server/baylen-api/v1/at-home-beauty/slots",
+    "target": "advancedio",
+    "method": "ANY",
+    "throttling": {
+      "overall": {},
+      "ip": {}
+    },
+    "target_id": "36851000000291764"
+  },
+  {
+    "name": "at-home-beauty-quote",
+    "source_endpoint": "/v1/at-home-beauty/quote",
+    "target_endpoint": "/server/baylen-api/v1/at-home-beauty/quote",
+    "target": "advancedio",
+    "method": "ANY",
+    "throttling": {
+      "overall": {},
+      "ip": {}
+    },
+    "target_id": "36851000000291764"
+  },
+  {
+    "name": "at-home-beauty-bookings-tracking",
+    "source_endpoint": "/v1/at-home-beauty/bookings/tracking",
+    "target_endpoint": "/server/baylen-api/v1/at-home-beauty/bookings/tracking",
+    "target": "advancedio",
+    "method": "ANY",
+    "throttling": {
+      "overall": {},
+      "ip": {}
+    },
+    "target_id": "36851000000291764"
+  },
+  {
+    "name": "at-home-beauty-bookings-cancel",
+    "source_endpoint": "/v1/at-home-beauty/bookings/cancel",
+    "target_endpoint": "/server/baylen-api/v1/at-home-beauty/bookings/cancel",
+    "target": "advancedio",
+    "method": "ANY",
+    "throttling": {
+      "overall": {},
+      "ip": {}
+    },
+    "target_id": "36851000000291764"
+  },
+  {
+    "name": "at-home-beauty-bookings-reschedule",
+    "source_endpoint": "/v1/at-home-beauty/bookings/reschedule",
+    "target_endpoint": "/server/baylen-api/v1/at-home-beauty/bookings/reschedule",
+    "target": "advancedio",
+    "method": "ANY",
+    "throttling": {
+      "overall": {},
+      "ip": {}
+    },
+    "target_id": "36851000000291764"
+  },
+  {
+    "name": "at-home-beauty-bookings-confirm-payment",
+    "source_endpoint": "/v1/at-home-beauty/bookings/confirm-payment",
+    "target_endpoint": "/server/baylen-api/v1/at-home-beauty/bookings/confirm-payment",
+    "target": "advancedio",
+    "method": "ANY",
+    "throttling": {
+      "overall": {},
+      "ip": {}
+    },
+    "target_id": "36851000000291764"
+  },
+  {
+    "name": "at-home-beauty-bookings-extra-respond",
+    "source_endpoint": "/v1/at-home-beauty/bookings/extra-services/respond",
+    "target_endpoint": "/server/baylen-api/v1/at-home-beauty/bookings/extra-services/respond",
+    "target": "advancedio",
+    "method": "ANY",
+    "throttling": {
+      "overall": {},
+      "ip": {}
+    },
+    "target_id": "36851000000291764"
+  },
+  {
+    "name": "at-home-beauty-providers",
+    "source_endpoint": "/v1/at-home-beauty/providers",
+    "target_endpoint": "/server/baylen-api/v1/at-home-beauty/providers",
+    "target": "advancedio",
+    "method": "ANY",
+    "throttling": {
+      "overall": {},
+      "ip": {}
+    },
+    "target_id": "36851000000291764"
+  },
+  {
+    "name": "at-home-beauty-bookings",
+    "source_endpoint": "/v1/at-home-beauty/bookings",
+    "target_endpoint": "/server/baylen-api/v1/at-home-beauty/bookings",
+    "target": "advancedio",
+    "method": "ANY",
+    "throttling": {
+      "overall": {},
+      "ip": {}
+    },
+    "target_id": "36851000000291764"
+  },
+  {
+    "name": "auth-role-select",
+    "source_endpoint": "/v1/auth/role-select",
+    "target_endpoint": "/server/baylen-api/v1/auth/role-select",
+    "target": "advancedio",
+    "method": "ANY",
+    "throttling": {
+      "overall": {},
+      "ip": {}
+    },
+    "target_id": "36851000000291764"
+  },
+  {
+    "name": "auth-delivery-partner-otp-request",
+    "source_endpoint": "/v1/auth/delivery-partner/otp/request",
+    "target_endpoint": "/server/baylen-api/v1/auth/delivery-partner/otp/request",
+    "target": "advancedio",
+    "method": "ANY",
+    "throttling": {
+      "overall": {},
+      "ip": {}
+    },
+    "target_id": "36851000000291764"
+  },
+  {
+    "name": "auth-delivery-partner-otp-verify",
+    "source_endpoint": "/v1/auth/delivery-partner/otp/verify",
+    "target_endpoint": "/server/baylen-api/v1/auth/delivery-partner/otp/verify",
+    "target": "advancedio",
+    "method": "ANY",
+    "throttling": {
+      "overall": {},
+      "ip": {}
+    },
+    "target_id": "36851000000291764"
+  },
+  {
+    "name": "auth-delivery-partner-login",
+    "source_endpoint": "/v1/auth/delivery-partner/login",
+    "target_endpoint": "/server/baylen-api/v1/auth/delivery-partner/login",
+    "target": "advancedio",
+    "method": "ANY",
+    "throttling": {
+      "overall": {},
+      "ip": {}
+    },
+    "target_id": "36851000000291764"
+  },
+  {
+    "name": "auth-delivery-partner-registration-status",
+    "source_endpoint": "/v1/auth/delivery-partner/registration/status",
+    "target_endpoint": "/server/baylen-api/v1/auth/delivery-partner/registration/status",
+    "target": "advancedio",
+    "method": "ANY",
+    "throttling": {
+      "overall": {},
+      "ip": {}
+    },
+    "target_id": "36851000000291764"
+  },
+  {
+    "name": "auth-delivery-partner-registration-profile",
+    "source_endpoint": "/v1/auth/delivery-partner/registration/profile",
+    "target_endpoint": "/server/baylen-api/v1/auth/delivery-partner/registration/profile",
+    "target": "advancedio",
+    "method": "ANY",
+    "throttling": {
+      "overall": {},
+      "ip": {}
+    },
+    "target_id": "36851000000291764"
+  },
+  {
+    "name": "auth-delivery-partner-registration-photos",
+    "source_endpoint": "/v1/auth/delivery-partner/registration/photos",
+    "target_endpoint": "/server/baylen-api/v1/auth/delivery-partner/registration/photos",
+    "target": "advancedio",
+    "method": "ANY",
+    "throttling": {
+      "overall": {},
+      "ip": {}
+    },
+    "target_id": "36851000000291764"
+  },
+  {
+    "name": "auth-delivery-partner-registration-password",
+    "source_endpoint": "/v1/auth/delivery-partner/registration/password",
+    "target_endpoint": "/server/baylen-api/v1/auth/delivery-partner/registration/password",
+    "target": "advancedio",
+    "method": "ANY",
+    "throttling": {
+      "overall": {},
+      "ip": {}
+    },
+    "target_id": "36851000000291764"
+  },
+  {
+    "name": "auth-delivery-partner-registration-complete",
+    "source_endpoint": "/v1/auth/delivery-partner/registration/complete",
+    "target_endpoint": "/server/baylen-api/v1/auth/delivery-partner/registration/complete",
+    "target": "advancedio",
+    "method": "ANY",
+    "throttling": {
+      "overall": {},
+      "ip": {}
+    },
+    "target_id": "36851000000291764"
+  },
+  {
+    "name": "auth-delivery-partner-password-forgot-request",
+    "source_endpoint": "/v1/auth/delivery-partner/password/forgot/request",
+    "target_endpoint": "/server/baylen-api/v1/auth/delivery-partner/password/forgot/request",
+    "target": "advancedio",
+    "method": "ANY",
+    "throttling": {
+      "overall": {},
+      "ip": {}
+    },
+    "target_id": "36851000000291764"
+  },
+  {
+    "name": "auth-delivery-partner-password-forgot-reset",
+    "source_endpoint": "/v1/auth/delivery-partner/password/forgot/reset",
+    "target_endpoint": "/server/baylen-api/v1/auth/delivery-partner/password/forgot/reset",
+    "target": "advancedio",
+    "method": "ANY",
+    "throttling": {
+      "overall": {},
+      "ip": {}
+    },
+    "target_id": "36851000000291764"
+  },
+  {
+    "name": "delivery-partner-leads",
+    "source_endpoint": "/v1/delivery-partner/leads",
+    "target_endpoint": "/server/baylen-api/v1/delivery-partner/leads",
+    "target": "advancedio",
+    "method": "ANY",
+    "throttling": {
+      "overall": {},
+      "ip": {}
+    },
+    "target_id": "36851000000291764"
+  },
+  {
+    "name": "delivery-partner-kyc",
+    "source_endpoint": "/v1/delivery-partner/kyc",
+    "target_endpoint": "/server/baylen-api/v1/delivery-partner/kyc",
+    "target": "advancedio",
+    "method": "ANY",
+    "throttling": {
+      "overall": {},
+      "ip": {}
+    },
+    "target_id": "36851000000291764"
+  },
+  {
+    "name": "delivery-partner-kyc-submit",
+    "source_endpoint": "/v1/delivery-partner/kyc/submit",
+    "target_endpoint": "/server/baylen-api/v1/delivery-partner/kyc/submit",
+    "target": "advancedio",
+    "method": "ANY",
+    "throttling": {
+      "overall": {},
+      "ip": {}
+    },
+    "target_id": "36851000000291764"
+  },
+  {
+    "name": "delivery-partner-kyc-documents",
+    "source_endpoint": "/v1/delivery-partner/kyc/documents",
+    "target_endpoint": "/server/baylen-api/v1/delivery-partner/kyc/documents",
+    "target": "advancedio",
+    "method": "ANY",
+    "throttling": {
+      "overall": {},
+      "ip": {}
+    },
+    "target_id": "36851000000291764"
+  },
+  {
+    "name": "delivery-partner-kyc-document-download",
+    "source_endpoint": "/v1/delivery-partner/kyc/documents/{documentType}",
+    "target_endpoint": "/server/baylen-api/v1/delivery-partner/kyc/documents/{documentType}",
+    "target": "advancedio",
+    "method": "ANY",
+    "throttling": {
+      "overall": {},
+      "ip": {}
+    },
+    "target_id": "36851000000291764"
+  },
+  {
+    "name": "delivery-partner-profile-photo",
+    "source_endpoint": "/v1/delivery-partner/profile-photo",
+    "target_endpoint": "/server/baylen-api/v1/delivery-partner/profile-photo",
+    "target": "advancedio",
+    "method": "ANY",
+    "throttling": {
+      "overall": {},
+      "ip": {}
+    },
+    "target_id": "36851000000291764"
+  },
+  {
+    "name": "delivery-partner-dashboard",
+    "source_endpoint": "/v1/delivery-partner/dashboard",
+    "target_endpoint": "/server/baylen-api/v1/delivery-partner/dashboard",
+    "target": "advancedio",
+    "method": "ANY",
+    "throttling": {
+      "overall": {},
+      "ip": {}
+    },
+    "target_id": "36851000000291764"
+  },
+  {
+    "name": "delivery-partner-status",
+    "source_endpoint": "/v1/delivery-partner/status",
+    "target_endpoint": "/server/baylen-api/v1/delivery-partner/status",
+    "target": "advancedio",
+    "method": "ANY",
+    "throttling": {
+      "overall": {},
+      "ip": {}
+    },
+    "target_id": "36851000000291764"
+  },
+  {
+    "name": "delivery-partner-professional-job-detail",
+    "source_endpoint": "/v1/delivery-partner/professional-job-detail",
+    "target_endpoint": "/server/baylen-api/v1/delivery-partner/professional-job-detail",
+    "target": "advancedio",
+    "method": "ANY",
+    "throttling": {
+      "overall": {},
+      "ip": {}
+    },
+    "target_id": "36851000000291764"
+  },
+  {
+    "name": "delivery-partner-job-detail",
+    "source_endpoint": "/v1/delivery-partner/jobs/detail",
+    "target_endpoint": "/server/baylen-api/v1/delivery-partner/jobs/detail",
+    "target": "advancedio",
+    "method": "ANY",
+    "throttling": {
+      "overall": {},
+      "ip": {}
+    },
+    "target_id": "36851000000291764"
+  },
+  {
+    "name": "delivery-partner-jobs-accept",
+    "source_endpoint": "/v1/delivery-partner/jobs/accept",
+    "target_endpoint": "/server/baylen-api/v1/delivery-partner/jobs/accept",
+    "target": "advancedio",
+    "method": "ANY",
+    "throttling": {
+      "overall": {},
+      "ip": {}
+    },
+    "target_id": "36851000000291764"
+  },
+  {
+    "name": "delivery-partner-jobs-reject",
+    "source_endpoint": "/v1/delivery-partner/jobs/reject",
+    "target_endpoint": "/server/baylen-api/v1/delivery-partner/jobs/reject",
+    "target": "advancedio",
+    "method": "ANY",
+    "throttling": {
+      "overall": {},
+      "ip": {}
+    },
+    "target_id": "36851000000291764"
+  },
+  {
+    "name": "delivery-partner-professional-job-accept",
+    "source_endpoint": "/v1/delivery-partner/professional-job-accept",
+    "target_endpoint": "/server/baylen-api/v1/delivery-partner/professional-job-accept",
+    "target": "advancedio",
+    "method": "ANY",
+    "throttling": {
+      "overall": {},
+      "ip": {}
+    },
+    "target_id": "36851000000291764"
+  },
+  {
+    "name": "delivery-partner-professional-job-reject",
+    "source_endpoint": "/v1/delivery-partner/professional-job-reject",
+    "target_endpoint": "/server/baylen-api/v1/delivery-partner/professional-job-reject",
+    "target": "advancedio",
+    "method": "ANY",
+    "throttling": {
+      "overall": {},
+      "ip": {}
+    },
+    "target_id": "36851000000291764"
+  },
+  {
+    "name": "delivery-partner-professional-job-start-travel",
+    "source_endpoint": "/v1/delivery-partner/professional-job-start-travel",
+    "target_endpoint": "/server/baylen-api/v1/delivery-partner/professional-job-start-travel",
+    "target": "advancedio",
+    "method": "ANY",
+    "throttling": {
+      "overall": {},
+      "ip": {}
+    },
+    "target_id": "36851000000291764"
+  },
+  {
+    "name": "delivery-partner-professional-job-location",
+    "source_endpoint": "/v1/delivery-partner/professional-job-location",
+    "target_endpoint": "/server/baylen-api/v1/delivery-partner/professional-job-location",
+    "target": "advancedio",
+    "method": "ANY",
+    "throttling": {
+      "overall": {},
+      "ip": {}
+    },
+    "target_id": "36851000000291764"
+  },
+  {
+    "name": "delivery-partner-jobs-start-travel",
+    "source_endpoint": "/v1/delivery-partner/jobs/start-travel",
+    "target_endpoint": "/server/baylen-api/v1/delivery-partner/jobs/start-travel",
+    "target": "advancedio",
+    "method": "ANY",
+    "throttling": {
+      "overall": {},
+      "ip": {}
+    },
+    "target_id": "36851000000291764"
+  },
+  {
+    "name": "delivery-partner-jobs-location",
+    "source_endpoint": "/v1/delivery-partner/jobs/location",
+    "target_endpoint": "/server/baylen-api/v1/delivery-partner/jobs/location",
+    "target": "advancedio",
+    "method": "ANY",
+    "throttling": {
+      "overall": {},
+      "ip": {}
+    },
+    "target_id": "36851000000291764"
+  },
+  {
+    "name": "professional-jobs-tracking",
+    "source_endpoint": "/v1/professional-jobs/tracking",
+    "target_endpoint": "/server/baylen-api/v1/professional-jobs/tracking",
+    "target": "advancedio",
+    "method": "ANY",
+    "throttling": {
+      "overall": {},
+      "ip": {}
+    },
+    "target_id": "36851000000291764"
+  },
+  {
+    "name": "delivery-partner-professional-job-arrival-preview",
+    "source_endpoint": "/v1/delivery-partner/professional-job-arrival-preview",
+    "target_endpoint": "/server/baylen-api/v1/delivery-partner/professional-job-arrival-preview",
+    "target": "advancedio",
+    "method": "ANY",
+    "throttling": {
+      "overall": {},
+      "ip": {}
+    },
+    "target_id": "36851000000291764"
+  },
+  {
+    "name": "delivery-partner-professional-job-arrive",
+    "source_endpoint": "/v1/delivery-partner/professional-job-arrive",
+    "target_endpoint": "/server/baylen-api/v1/delivery-partner/professional-job-arrive",
+    "target": "advancedio",
+    "method": "ANY",
+    "throttling": {
+      "overall": {},
+      "ip": {}
+    },
+    "target_id": "36851000000291764"
+  },
+  {
+    "name": "delivery-partner-professional-job-verify-otp",
+    "source_endpoint": "/v1/delivery-partner/professional-job-verify-otp",
+    "target_endpoint": "/server/baylen-api/v1/delivery-partner/professional-job-verify-otp",
+    "target": "advancedio",
+    "method": "ANY",
+    "throttling": {
+      "overall": {},
+      "ip": {}
+    },
+    "target_id": "36851000000291764"
+  },
+  {
+    "name": "delivery-partner-professional-job-resend-otp",
+    "source_endpoint": "/v1/delivery-partner/professional-job-resend-otp",
+    "target_endpoint": "/server/baylen-api/v1/delivery-partner/professional-job-resend-otp",
+    "target": "advancedio",
+    "method": "ANY",
+    "throttling": {
+      "overall": {},
+      "ip": {}
+    },
+    "target_id": "36851000000291764"
+  },
+  {
+    "name": "delivery-partner-professional-job-execution",
+    "source_endpoint": "/v1/delivery-partner/professional-job-execution",
+    "target_endpoint": "/server/baylen-api/v1/delivery-partner/professional-job-execution",
+    "target": "advancedio",
+    "method": "ANY",
+    "throttling": {
+      "overall": {},
+      "ip": {}
+    },
+    "target_id": "36851000000291764"
+  },
+  {
+    "name": "delivery-partner-professional-job-start-service",
+    "source_endpoint": "/v1/delivery-partner/professional-job-start-service",
+    "target_endpoint": "/server/baylen-api/v1/delivery-partner/professional-job-start-service",
+    "target": "advancedio",
+    "method": "ANY",
+    "throttling": {
+      "overall": {},
+      "ip": {}
+    },
+    "target_id": "36851000000291764"
+  },
+  {
+    "name": "delivery-partner-professional-job-checklist-item",
+    "source_endpoint": "/v1/delivery-partner/professional-job-checklist-item",
+    "target_endpoint": "/server/baylen-api/v1/delivery-partner/professional-job-checklist-item",
+    "target": "advancedio",
+    "method": "ANY",
+    "throttling": {
+      "overall": {},
+      "ip": {}
+    },
+    "target_id": "36851000000291764"
+  },
+  {
+    "name": "delivery-partner-professional-job-add-on-request",
+    "source_endpoint": "/v1/delivery-partner/professional-job-add-on-request",
+    "target_endpoint": "/server/baylen-api/v1/delivery-partner/professional-job-add-on-request",
+    "target": "advancedio",
+    "method": "ANY",
+    "throttling": {
+      "overall": {},
+      "ip": {}
+    },
+    "target_id": "36851000000291764"
+  },
+  {
+    "name": "delivery-partner-professional-job-proof",
+    "source_endpoint": "/v1/delivery-partner/professional-job-proof",
+    "target_endpoint": "/server/baylen-api/v1/delivery-partner/professional-job-proof",
+    "target": "advancedio",
+    "method": "ANY",
+    "throttling": {
+      "overall": {},
+      "ip": {}
+    },
+    "target_id": "36851000000291764"
+  },
+  {
+    "name": "delivery-partner-professional-job-complete-service",
+    "source_endpoint": "/v1/delivery-partner/professional-job-complete-service",
+    "target_endpoint": "/server/baylen-api/v1/delivery-partner/professional-job-complete-service",
+    "target": "advancedio",
+    "method": "ANY",
+    "throttling": {
+      "overall": {},
+      "ip": {}
+    },
+    "target_id": "36851000000291764"
+  },
+  {
+    "name": "delivery-partner-professional-job-delivery-execution",
+    "source_endpoint": "/v1/delivery-partner/professional-job-delivery-execution",
+    "target_endpoint": "/server/baylen-api/v1/delivery-partner/professional-job-delivery-execution",
+    "target": "advancedio",
+    "method": "ANY",
+    "throttling": {
+      "overall": {},
+      "ip": {}
+    },
+    "target_id": "36851000000291764"
+  },
+  {
+    "name": "delivery-partner-professional-job-start-pickup",
+    "source_endpoint": "/v1/delivery-partner/professional-job-start-pickup",
+    "target_endpoint": "/server/baylen-api/v1/delivery-partner/professional-job-start-pickup",
+    "target": "advancedio",
+    "method": "ANY",
+    "throttling": {
+      "overall": {},
+      "ip": {}
+    },
+    "target_id": "36851000000291764"
+  },
+  {
+    "name": "delivery-partner-professional-job-pickup-preview",
+    "source_endpoint": "/v1/delivery-partner/professional-job-pickup-preview",
+    "target_endpoint": "/server/baylen-api/v1/delivery-partner/professional-job-pickup-preview",
+    "target": "advancedio",
+    "method": "ANY",
+    "throttling": {
+      "overall": {},
+      "ip": {}
+    },
+    "target_id": "36851000000291764"
+  },
+  {
+    "name": "delivery-partner-professional-job-pickup-arrive",
+    "source_endpoint": "/v1/delivery-partner/professional-job-pickup-arrive",
+    "target_endpoint": "/server/baylen-api/v1/delivery-partner/professional-job-pickup-arrive",
+    "target": "advancedio",
+    "method": "ANY",
+    "throttling": {
+      "overall": {},
+      "ip": {}
+    },
+    "target_id": "36851000000291764"
+  },
+  {
+    "name": "delivery-partner-professional-job-verify-pickup",
+    "source_endpoint": "/v1/delivery-partner/professional-job-verify-pickup",
+    "target_endpoint": "/server/baylen-api/v1/delivery-partner/professional-job-verify-pickup",
+    "target": "advancedio",
+    "method": "ANY",
+    "throttling": {
+      "overall": {},
+      "ip": {}
+    },
+    "target_id": "36851000000291764"
+  },
+  {
+    "name": "delivery-partner-professional-job-pickup",
+    "source_endpoint": "/v1/delivery-partner/professional-job-pickup",
+    "target_endpoint": "/server/baylen-api/v1/delivery-partner/professional-job-pickup",
+    "target": "advancedio",
+    "method": "ANY",
+    "throttling": {
+      "overall": {},
+      "ip": {}
+    },
+    "target_id": "36851000000291764"
+  },
+  {
+    "name": "delivery-partner-professional-job-start-delivery",
+    "source_endpoint": "/v1/delivery-partner/professional-job-start-delivery",
+    "target_endpoint": "/server/baylen-api/v1/delivery-partner/professional-job-start-delivery",
+    "target": "advancedio",
+    "method": "ANY",
+    "throttling": {
+      "overall": {},
+      "ip": {}
+    },
+    "target_id": "36851000000291764"
+  },
+  {
+    "name": "delivery-partner-professional-job-delivery-preview",
+    "source_endpoint": "/v1/delivery-partner/professional-job-delivery-preview",
+    "target_endpoint": "/server/baylen-api/v1/delivery-partner/professional-job-delivery-preview",
+    "target": "advancedio",
+    "method": "ANY",
+    "throttling": {
+      "overall": {},
+      "ip": {}
+    },
+    "target_id": "36851000000291764"
+  },
+  {
+    "name": "delivery-partner-professional-job-delivery-arrive",
+    "source_endpoint": "/v1/delivery-partner/professional-job-delivery-arrive",
+    "target_endpoint": "/server/baylen-api/v1/delivery-partner/professional-job-delivery-arrive",
+    "target": "advancedio",
+    "method": "ANY",
+    "throttling": {
+      "overall": {},
+      "ip": {}
+    },
+    "target_id": "36851000000291764"
+  },
+  {
+    "name": "delivery-partner-professional-job-verify-delivery-otp",
+    "source_endpoint": "/v1/delivery-partner/professional-job-verify-delivery-otp",
+    "target_endpoint": "/server/baylen-api/v1/delivery-partner/professional-job-verify-delivery-otp",
+    "target": "advancedio",
+    "method": "ANY",
+    "throttling": {
+      "overall": {},
+      "ip": {}
+    },
+    "target_id": "36851000000291764"
+  },
+  {
+    "name": "delivery-partner-professional-job-delivered",
+    "source_endpoint": "/v1/delivery-partner/professional-job-delivered",
+    "target_endpoint": "/server/baylen-api/v1/delivery-partner/professional-job-delivered",
+    "target": "advancedio",
+    "method": "ANY",
+    "throttling": {
+      "overall": {},
+      "ip": {}
+    },
+    "target_id": "36851000000291764"
+  },
+  {
+    "name": "delivery-partner-professional-job-complete-delivery",
+    "source_endpoint": "/v1/delivery-partner/professional-job-complete-delivery",
+    "target_endpoint": "/server/baylen-api/v1/delivery-partner/professional-job-complete-delivery",
+    "target": "advancedio",
+    "method": "ANY",
+    "throttling": {
+      "overall": {},
+      "ip": {}
+    },
+    "target_id": "36851000000291764"
+  },
+  {
+    "name": "delivery-partner-jobs",
+    "source_endpoint": "/v1/delivery-partner/jobs",
+    "target_endpoint": "/server/baylen-api/v1/delivery-partner/jobs",
+    "target": "advancedio",
+    "method": "ANY",
+    "throttling": {
+      "overall": {},
+      "ip": {}
+    },
+    "target_id": "36851000000291764"
+  },
+  {
+    "name": "delivery-partner-job-detail-legacy",
+    "source_endpoint": "/v1/delivery-partner/jobs/{jobId}",
+    "target_endpoint": "/server/baylen-api/v1/delivery-partner/jobs/{jobId}",
+    "target": "advancedio",
+    "method": "ANY",
+    "throttling": {
+      "overall": {},
+      "ip": {}
+    },
+    "target_id": "36851000000291764"
+  },
+  {
+    "name": "admin-professional-job-dispatch",
+    "source_endpoint": "/v1/admin/professional-jobs/{jobId}/dispatch",
+    "target_endpoint": "/server/baylen-api/v1/admin/professional-jobs/{jobId}/dispatch",
+    "target": "advancedio",
+    "method": "ANY",
+    "throttling": {
+      "overall": {},
+      "ip": {}
+    },
+    "target_id": "36851000000291764"
+  },
+  {
+    "name": "admin-professional-jobs-dispatch-pending",
+    "source_endpoint": "/v1/admin/professional-jobs/dispatch-pending",
+    "target_endpoint": "/server/baylen-api/v1/admin/professional-jobs/dispatch-pending",
+    "target": "advancedio",
+    "method": "ANY",
+    "throttling": {
+      "overall": {},
+      "ip": {}
+    },
+    "target_id": "36851000000291764"
+  },
+  {
+    "name": "admin-professional-jobs-process-expired-offers",
+    "source_endpoint": "/v1/admin/professional-jobs/process-expired-offers",
+    "target_endpoint": "/server/baylen-api/v1/admin/professional-jobs/process-expired-offers",
+    "target": "advancedio",
+    "method": "ANY",
+    "throttling": {
+      "overall": {},
+      "ip": {}
+    },
+    "target_id": "36851000000291764"
+  },
+  {
+    "name": "admin-delivery-partner-kyc-get",
+    "source_endpoint": "/v1/admin/delivery-partners/{id}/kyc",
+    "target_endpoint": "/server/baylen-api/v1/admin/delivery-partners/{id}/kyc",
+    "target": "advancedio",
+    "method": "ANY",
+    "throttling": {
+      "overall": {},
+      "ip": {}
+    },
+    "target_id": "36851000000291764"
+  },
+  {
+    "name": "admin-delivery-partner-kyc-approve",
+    "source_endpoint": "/v1/admin/delivery-partners/{id}/kyc/approve",
+    "target_endpoint": "/server/baylen-api/v1/admin/delivery-partners/{id}/kyc/approve",
+    "target": "advancedio",
+    "method": "ANY",
+    "throttling": {
+      "overall": {},
+      "ip": {}
+    },
+    "target_id": "36851000000291764"
+  },
+  {
+    "name": "admin-delivery-partner-kyc-reject",
+    "source_endpoint": "/v1/admin/delivery-partners/{id}/kyc/reject",
+    "target_endpoint": "/server/baylen-api/v1/admin/delivery-partners/{id}/kyc/reject",
+    "target": "advancedio",
+    "method": "ANY",
+    "throttling": {
+      "overall": {},
+      "ip": {}
+    },
+    "target_id": "36851000000291764"
+  },
+  {
+    "name": "admin-delivery-partner-kyc-document",
+    "source_endpoint": "/v1/admin/delivery-partners/{id}/kyc/documents/{documentType}",
+    "target_endpoint": "/server/baylen-api/v1/admin/delivery-partners/{id}/kyc/documents/{documentType}",
+    "target": "advancedio",
+    "method": "ANY",
+    "throttling": {
+      "overall": {},
+      "ip": {}
+    },
+    "target_id": "36851000000291764"
+  },
+  {
+    "name": "delivery-partner-notifications",
+    "source_endpoint": "/v1/delivery-partner/notifications",
+    "target_endpoint": "/server/baylen-api/v1/delivery-partner/notifications",
+    "target": "advancedio",
+    "method": "ANY",
+    "throttling": {
+      "overall": {},
+      "ip": {}
+    },
+    "target_id": "36851000000291764"
+  },
+  {
+    "name": "delivery-partner-notifications-read",
+    "source_endpoint": "/v1/delivery-partner/notifications/read",
+    "target_endpoint": "/server/baylen-api/v1/delivery-partner/notifications/read",
+    "target": "advancedio",
+    "method": "ANY",
+    "throttling": {
+      "overall": {},
+      "ip": {}
+    },
+    "target_id": "36851000000291764"
+  },
+  {
+    "name": "delivery-partner-professional-job-cancel",
+    "source_endpoint": "/v1/delivery-partner/professional-job-cancel",
+    "target_endpoint": "/server/baylen-api/v1/delivery-partner/professional-job-cancel",
+    "target": "advancedio",
+    "method": "ANY",
+    "throttling": {
+      "overall": {},
+      "ip": {}
+    },
+    "target_id": "36851000000291764"
+  },
+  {
+    "name": "delivery-partner-professional-job-no-show-eligibility",
+    "source_endpoint": "/v1/delivery-partner/professional-job-no-show-eligibility",
+    "target_endpoint": "/server/baylen-api/v1/delivery-partner/professional-job-no-show-eligibility",
+    "target": "advancedio",
+    "method": "ANY",
+    "throttling": {
+      "overall": {},
+      "ip": {}
+    },
+    "target_id": "36851000000291764"
+  },
+  {
+    "name": "delivery-partner-professional-job-no-show",
+    "source_endpoint": "/v1/delivery-partner/professional-job-no-show",
+    "target_endpoint": "/server/baylen-api/v1/delivery-partner/professional-job-no-show",
+    "target": "advancedio",
+    "method": "ANY",
+    "throttling": {
+      "overall": {},
+      "ip": {}
+    },
+    "target_id": "36851000000291764"
+  },
+  {
+    "name": "delivery-partner-support-tickets",
+    "source_endpoint": "/v1/delivery-partner/support/tickets",
+    "target_endpoint": "/server/baylen-api/v1/delivery-partner/support/tickets",
+    "target": "advancedio",
+    "method": "ANY",
+    "throttling": {
+      "overall": {},
+      "ip": {}
+    },
+    "target_id": "36851000000291764"
+  },
+  {
+    "name": "admin-salesiq-mobile-keys-provision",
+    "source_endpoint": "/v1/admin/salesiq/mobile-keys/provision",
+    "target_endpoint": "/server/baylen-api/v1/admin/salesiq/mobile-keys/provision",
+    "target": "advancedio",
+    "method": "ANY",
+    "throttling": {
+      "overall": {},
+      "ip": {}
+    },
+    "target_id": "36851000000291764"
+  },
+  {
+    "name": "salesiq-mobile-config",
+    "source_endpoint": "/v1/salesiq/mobile-config",
+    "target_endpoint": "/server/baylen-api/v1/salesiq/mobile-config",
+    "target": "advancedio",
+    "method": "ANY",
+    "throttling": {
+      "overall": {},
+      "ip": {}
+    },
+    "target_id": "36851000000291764"
+  },
+  {
+    "name": "v1-payments-reconcile",
+    "source_endpoint": "/v1/payments/reconcile",
+    "target_endpoint": "/server/baylen-api/v1/payments/reconcile",
+    "target": "advancedio",
+    "method": "ANY",
+    "throttling": {
+      "overall": {},
+      "ip": {}
+    },
+    "target_id": "36851000000291764"
+  },
+  {
+    "name": "v1-payments-checkout-session",
+    "source_endpoint": "/v1/payments/checkout-session",
+    "target_endpoint": "/server/baylen-api/v1/payments/checkout-session",
+    "target": "advancedio",
+    "method": "ANY",
+    "throttling": {
+      "overall": {},
+      "ip": {}
+    },
+    "target_id": "36851000000291764"
+  },
+  {
+    "name": "v1-payments-checkout",
+    "source_endpoint": "/v1/payments/checkout",
+    "target_endpoint": "/server/baylen-api/v1/payments/checkout",
+    "target": "advancedio",
+    "method": "ANY",
+    "throttling": {
+      "overall": {},
+      "ip": {}
+    },
+    "target_id": "36851000000291764"
+  },
+  {
+    "name": "v1-payments-checkout-complete",
+    "source_endpoint": "/v1/payments/checkout-complete",
+    "target_endpoint": "/server/baylen-api/v1/payments/checkout-complete",
+    "target": "advancedio",
+    "method": "ANY",
+    "throttling": {
+      "overall": {},
+      "ip": {}
+    },
+    "target_id": "36851000000291764"
+  },
+  {
+    "name": "v1-payments-webhooks-razorpay",
+    "source_endpoint": "/v1/payments/webhooks/razorpay",
+    "target_endpoint": "/server/baylen-api/v1/payments/webhooks/razorpay",
+    "target": "advancedio",
+    "method": "ANY",
+    "throttling": {
+      "overall": {},
+      "ip": {}
+    },
+    "target_id": "36851000000291764"
+  },
+  {
+    "name": "v1-payments-refunds",
+    "source_endpoint": "/v1/payments/refunds",
+    "target_endpoint": "/server/baylen-api/v1/payments/refunds",
+    "target": "advancedio",
+    "method": "ANY",
+    "throttling": {
+      "overall": {},
+      "ip": {}
+    },
+    "target_id": "36851000000291764"
+  },
+  {
+    "name": "v1-admin-payments-refunds",
+    "source_endpoint": "/v1/admin/payments/refunds",
+    "target_endpoint": "/server/baylen-api/v1/admin/payments/refunds",
+    "target": "advancedio",
+    "method": "ANY",
+    "throttling": {
+      "overall": {},
+      "ip": {}
+    },
+    "target_id": "36851000000291764"
+  },
+  {
+    "name": "v1-admin-payments-refund-process",
+    "source_endpoint": "/v1/admin/payments/refund-process",
+    "target_endpoint": "/server/baylen-api/v1/admin/payments/refund-process",
+    "target": "advancedio",
+    "method": "ANY",
+    "throttling": {
+      "overall": {},
+      "ip": {}
+    },
+    "target_id": "36851000000291764"
+  },
+  {
+    "name": "v1-admin-payments-reconcile",
+    "source_endpoint": "/v1/admin/payments/reconcile",
+    "target_endpoint": "/server/baylen-api/v1/admin/payments/reconcile",
     "target": "advancedio",
     "method": "ANY",
     "throttling": {

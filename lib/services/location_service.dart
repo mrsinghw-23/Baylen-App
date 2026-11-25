@@ -6,6 +6,7 @@ import 'package:geolocator/geolocator.dart';
 import 'package:http/http.dart' as http;
 
 import '../config/app_config.dart';
+import '../utils/location_status.dart';
 
 class UserLocation {
   const UserLocation({
@@ -14,12 +15,20 @@ class UserLocation {
     required this.city,
     required this.area,
     this.formattedAddress,
+    this.source = LocationSource.unknown,
+    this.capturedAt,
+    this.accuracyMeters,
   });
   final double latitude;
   final double longitude;
   final String city;
   final String area;
   final String? formattedAddress;
+  final LocationSource source;
+  final DateTime? capturedAt;
+  final double? accuracyMeters;
+
+  bool get isFromDeviceGps => source == LocationSource.gps;
 }
 
 class LocationService {
@@ -32,19 +41,73 @@ class LocationService {
   final ValueNotifier<String?> error = ValueNotifier(null);
   final ValueNotifier<bool> isGpsDisabled = ValueNotifier(false);
   final ValueNotifier<bool> isPermissionBlocked = ValueNotifier(false);
+  final ValueNotifier<DeviceLocationStatus> permissionStatus =
+      ValueNotifier(DeviceLocationStatus.unknown);
   StreamSubscription<Position>? _positionSubscription;
 
+  static const Duration gpsFreshness = Duration(minutes: 10);
+
+  bool get hasValidDeviceGps {
+    final loc = currentLocation.value;
+    if (loc == null || !loc.isFromDeviceGps) {
+      return false;
+    }
+    final capturedAt = loc.capturedAt;
+    if (capturedAt == null) {
+      return true;
+    }
+    return DateTime.now().difference(capturedAt) <= gpsFreshness;
+  }
+
+  bool get hasAnyLocation => currentLocation.value != null;
+
+  Future<DeviceLocationStatus> refreshPermissionStatus() async {
+    try {
+      final serviceEnabled = await Geolocator.isLocationServiceEnabled();
+      if (!serviceEnabled) {
+        isGpsDisabled.value = true;
+        permissionStatus.value = DeviceLocationStatus.gpsDisabled;
+        return permissionStatus.value;
+      }
+      isGpsDisabled.value = false;
+
+      final permission = await Geolocator.checkPermission();
+      if (permission == LocationPermission.deniedForever) {
+        isPermissionBlocked.value = true;
+        permissionStatus.value = DeviceLocationStatus.permanentlyDenied;
+        return permissionStatus.value;
+      }
+      if (permission == LocationPermission.denied) {
+        isPermissionBlocked.value = true;
+        permissionStatus.value = DeviceLocationStatus.denied;
+        return permissionStatus.value;
+      }
+      isPermissionBlocked.value = false;
+      permissionStatus.value = DeviceLocationStatus.granted;
+      return permissionStatus.value;
+    } catch (_) {
+      permissionStatus.value = DeviceLocationStatus.error;
+      return permissionStatus.value;
+    }
+  }
+
   Future<void> fetchCurrentLocation({bool force = false}) async {
-    if (currentLocation.value != null && !force) return;
+    if (currentLocation.value != null &&
+        currentLocation.value!.isFromDeviceGps &&
+        !force) {
+      return;
+    }
 
     isLoading.value = true;
     error.value = null;
+    permissionStatus.value = DeviceLocationStatus.requesting;
 
     try {
       // 1. Check if device location service (GPS) is turned on.
       final serviceEnabled = await Geolocator.isLocationServiceEnabled();
       if (!serviceEnabled) {
         isGpsDisabled.value = true;
+        permissionStatus.value = DeviceLocationStatus.gpsDisabled;
         throw Exception('Device GPS / Location service is turned off.');
       }
 
@@ -56,14 +119,17 @@ class LocationService {
         permission = await Geolocator.requestPermission();
         if (permission == LocationPermission.denied) {
           isPermissionBlocked.value = true;
+          permissionStatus.value = DeviceLocationStatus.denied;
           throw Exception('Location permissions are denied.');
         }
       }
       if (permission == LocationPermission.deniedForever) {
         isPermissionBlocked.value = true;
+        permissionStatus.value = DeviceLocationStatus.permanentlyDenied;
         throw Exception('Location permissions are permanently denied.');
       }
       isPermissionBlocked.value = false;
+      permissionStatus.value = DeviceLocationStatus.granted;
 
       Position? position;
       try {
@@ -89,10 +155,17 @@ class LocationService {
         position.longitude,
       );
 
-      currentLocation.value = _locationFromPosition(position, resolved);
+      currentLocation.value = _locationFromPosition(
+        position,
+        resolved,
+        source: LocationSource.gps,
+      );
       _startLocationStream();
     } catch (e) {
       error.value = e.toString();
+      if (permissionStatus.value == DeviceLocationStatus.requesting) {
+        permissionStatus.value = DeviceLocationStatus.error;
+      }
     } finally {
       isLoading.value = false;
     }
@@ -101,6 +174,9 @@ class LocationService {
   /// Reverse geocoding with Google Maps Geocoding API + Multi-platform fallback
   Future<Map<String, String>> reverseGeocode(double lat, double lng) async {
     String city = '';
+    String state = '';
+    String district = '';
+    String postalCode = '';
     String area = '';
     String formattedAddress = '';
 
@@ -125,6 +201,15 @@ class LocationService {
               } else if (city.isEmpty &&
                   types.contains('administrative_area_level_2')) {
                 city = comp['long_name'] ?? '';
+              }
+              if (types.contains('administrative_area_level_1')) {
+                state = comp['long_name'] ?? '';
+              }
+              if (types.contains('administrative_area_level_2')) {
+                district = comp['long_name'] ?? '';
+              }
+              if (types.contains('postal_code')) {
+                postalCode = comp['long_name'] ?? '';
               }
               if (types.contains('sublocality') ||
                   types.contains('sublocality_level_1')) {
@@ -178,6 +263,12 @@ class LocationService {
                 addr['road']?.toString() ??
                 addr['county']?.toString() ??
                 '';
+            state = addr['state']?.toString() ?? state;
+            district =
+                addr['state_district']?.toString() ??
+                addr['county']?.toString() ??
+                district;
+            postalCode = addr['postcode']?.toString() ?? postalCode;
           }
         }
       } catch (_) {}
@@ -190,7 +281,14 @@ class LocationService {
       area = city;
     }
 
-    return {'city': city, 'area': area, 'formatted_address': formattedAddress};
+    return {
+      'city': city,
+      'state': state,
+      'district': district,
+      'postal_code': postalCode,
+      'area': area,
+      'formatted_address': formattedAddress,
+    };
   }
 
   /// Search locations/addresses by text query
@@ -304,11 +402,27 @@ class LocationService {
 
   // Allow manual override (e.g., from a location picker)
   void setManualLocation(UserLocation location) {
-    currentLocation.value = location;
+    currentLocation.value = UserLocation(
+      latitude: location.latitude,
+      longitude: location.longitude,
+      city: location.city,
+      area: location.area,
+      formattedAddress: location.formattedAddress,
+      source: LocationSource.manual,
+      capturedAt: DateTime.now(),
+      accuracyMeters: location.accuracyMeters,
+    );
     error.value = null;
+    permissionStatus.value = DeviceLocationStatus.granted;
   }
 
   void _startLocationStream() {
+    if (!kIsWeb &&
+        (defaultTargetPlatform == TargetPlatform.windows ||
+            defaultTargetPlatform == TargetPlatform.macOS ||
+            defaultTargetPlatform == TargetPlatform.linux)) {
+      return;
+    }
     if (_positionSubscription != null) return;
     _positionSubscription =
         Geolocator.getPositionStream(
@@ -333,7 +447,11 @@ class LocationService {
               position.latitude,
               position.longitude,
             );
-            currentLocation.value = _locationFromPosition(position, resolved);
+            currentLocation.value = _locationFromPosition(
+              position,
+              resolved,
+              source: LocationSource.gps,
+            );
           },
           onError: (Object streamError) {
             error.value = streamError.toString();
@@ -343,8 +461,9 @@ class LocationService {
 
   UserLocation _locationFromPosition(
     Position position,
-    Map<String, String> resolved,
-  ) {
+    Map<String, String> resolved, {
+    LocationSource source = LocationSource.gps,
+  }) {
     return UserLocation(
       latitude: position.latitude,
       longitude: position.longitude,
@@ -353,6 +472,9 @@ class LocationService {
           ? resolved['area']!
           : '${position.latitude.toStringAsFixed(4)}, ${position.longitude.toStringAsFixed(4)}',
       formattedAddress: resolved['formatted_address'],
+      source: source,
+      capturedAt: DateTime.now(),
+      accuracyMeters: position.accuracy,
     );
   }
 }

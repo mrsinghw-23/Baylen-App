@@ -1,4 +1,6 @@
 const { rowsOf, num, sendOk } = require("../lib/http");
+const { citiesMatch, cityKey } = require("../lib/salon-engine");
+const { requireCoordinates } = require("../lib/geo-coords");
 
 function money(value) {
   return Math.round(num(value) * 100) / 100;
@@ -181,14 +183,11 @@ function haversineKm(lat1, lon1, lat2, lon2) {
   return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
 
-function parseCoordinate(value, name) {
-  const parsed = parseFloat(value);
-  if (Number.isNaN(parsed) || !Number.isFinite(parsed)) {
-    const error = new Error(name + " is required");
-    error.status = 400;
-    throw error;
-  }
-  return parsed;
+function parseCoordinatePair(source) {
+  return requireCoordinates(
+    source.lat ?? source.latitude,
+    source.lng ?? source.longitude
+  );
 }
 
 function isOpenNow(row) {
@@ -246,8 +245,7 @@ function mapNearbyOutlet(row, userLat, userLng) {
 }
 
 async function nearbyOutletsPayload(req, source) {
-  const latitude = parseCoordinate(source.lat ?? source.latitude, "latitude");
-  const longitude = parseCoordinate(source.lng ?? source.longitude, "longitude");
+  const { latitude, longitude } = parseCoordinatePair(source);
   const limit = Math.min(Math.max(parseInt(source.limit || "20", 10) || 20, 1), 100);
 
   const outlets = await safeRows(
@@ -256,20 +254,27 @@ async function nearbyOutletsPayload(req, source) {
     "Outlets"
   );
 
+  const city = String(source.city || source.location || "").trim();
+  const radius = Math.min(Math.max(Number(source.radius_km) || 25, 1), 80);
   const mapped = outlets
     .map((row) => mapNearbyOutlet(row, latitude, longitude))
     .filter((outlet) => outlet.latitude && outlet.longitude)
+    .filter((outlet) => {
+      if (cityKey(city)) {
+        return citiesMatch(city, outlet.city);
+      }
+      return outlet.distance_km <= radius;
+    })
     .sort((a, b) => a.distance_km - b.distance_km);
 
   return {
-    user_location: { latitude, longitude },
+    user_location: { latitude, longitude, city },
     outlets: mapped.slice(0, limit),
   };
 }
 
 async function nearbyStoresPayload(req, source) {
-  const latitude = parseCoordinate(source.lat ?? source.latitude, "latitude");
-  const longitude = parseCoordinate(source.lng ?? source.longitude, "longitude");
+  const { latitude, longitude } = parseCoordinatePair(source);
   const limit = Math.min(Math.max(parseInt(source.limit || "100", 10) || 100, 1), 100);
   const stores = await safeRows(
     req,
@@ -464,6 +469,37 @@ function homeRoutes(app) {
     }
   });
 
+  // SalesIQ mobile SDK keys (read-only; never rotates keys)
+  app.get("/v1/salesiq/mobile-config", async (req, res, next) => {
+    try {
+      const { readMobileKeys } = require("../lib/salesiq-client");
+      const keys = await readMobileKeys(req);
+      sendOk(res, {
+        configured: Boolean(
+          keys.android?.appKey &&
+            keys.android?.accessKey &&
+            keys.ios?.appKey &&
+            keys.ios?.accessKey
+        ),
+        bundle_id: keys.expectedAndroidBundle,
+        android: {
+          app_key: keys.android?.appKey || "",
+          access_key: keys.android?.accessKey || "",
+          registered_bundle: keys.android?.registeredBundle || "",
+          bundle_match: keys.android?.bundleMatch === true,
+        },
+        ios: {
+          app_key: keys.ios?.appKey || "",
+          access_key: keys.ios?.accessKey || "",
+          registered_bundle: keys.ios?.registeredBundle || "",
+          bundle_match: keys.ios?.bundleMatch === true,
+        },
+      });
+    } catch (error) {
+      next(error);
+    }
+  });
+
   // Notification unread count
   app.get("/v1/notifications/count", async (req, res, next) => {
     try {
@@ -484,3 +520,8 @@ function homeRoutes(app) {
 }
 
 module.exports = homeRoutes;
+module.exports.inDisplayWindow = inDisplayWindow;
+module.exports.mapBanner = mapBanner;
+module.exports.mapTrending = mapTrending;
+module.exports.mapCategory = mapCategory;
+module.exports.haversineKm = haversineKm;

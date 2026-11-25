@@ -20,11 +20,29 @@ const galleryRoutes = require("./routes/gallery");
 const adminRoutes = require("./routes/admin");
 const importRoutes = require("./routes/imports");
 const fulfillmentRoutes = require("./routes/fulfillment");
+const lowStockRoutes = require("./routes/low-stock");
+const serviceabilityRoutes = require("./routes/serviceability");
+const atHomeBeautyRoutes = require("./routes/at-home-beauty");
 const pickerRoutes = require("./routes/picker");
 const riderRoutes = require("./routes/rider");
+const { deliveryPartnerRoutes } = require("./routes/delivery-partner");
+const { professionalJobRoutes } = require("./routes/professional-jobs");
+const { orderIntegrationRoutes } = require("./routes/order-integrations");
 const { sendError } = require("./lib/http");
+const { assertRuntimeSecrets, isProductionRuntime } = require("./lib/runtime-config");
 const { getWhatsappOtpStatus } = require("./lib/whatsapp-otp");
 const { getBookingWhatsappStatus } = require("./lib/booking-notify");
+const { getOrderWhatsappStatus } = require("./lib/order-notify");
+const { professionalRateLimitMiddleware } = require("./lib/professional-rate-limit");
+
+try {
+  assertRuntimeSecrets();
+} catch (error) {
+  console.error("[baylen-api] FATAL runtime configuration:", error.message);
+  if (isProductionRuntime()) {
+    throw error;
+  }
+}
 
 const app = express();
 app.use((req, res, next) => {
@@ -38,7 +56,24 @@ app.use((req, res, next) => {
   next();
 });
 app.use(cors());
-app.use(express.json({ limit: "8mb" }));
+app.use(express.json({
+  limit: "32mb",
+  verify(req, res, buffer) {
+    if (req.path === "/v1/payments/webhooks/razorpay") req.rawPaymentBody = Buffer.from(buffer);
+  },
+}));
+app.use(
+  express.raw({
+    type: (contentType) => {
+      const value = String(contentType || "").toLowerCase();
+      return (
+        value.includes("application/octet-stream") ||
+        value.includes("application/x-baylen-backup")
+      );
+    },
+    limit: "64mb",
+  })
+);
 
 app.use((req, res, next) => {
   try {
@@ -50,9 +85,12 @@ app.use((req, res, next) => {
   }
 });
 
+app.use(professionalRateLimitMiddleware);
+
 app.get("/health", (req, res) => {
   const otpStatus = getWhatsappOtpStatus();
   const bookingStatus = getBookingWhatsappStatus();
+  const orderStatus = getOrderWhatsappStatus();
   if (!otpStatus.ready) {
     console.error(
       "[health] WhatsApp OTP is not configured on baylen-api:",
@@ -63,6 +101,12 @@ app.get("/health", (req, res) => {
     console.error(
       "[health] WhatsApp booking template is not configured:",
       bookingStatus.missing.join(", ")
+    );
+  }
+  if (!orderStatus.ready) {
+    console.error(
+      "[health] WhatsApp order template is not configured:",
+      orderStatus.missing.join(", ")
     );
   }
   res.status(200).json({
@@ -76,8 +120,10 @@ app.get("/health", (req, res) => {
         template: otpStatus.template,
         sender_configured: otpStatus.sender_configured,
         dev_otp_fallback_enabled: otpStatus.dev_fallback_enabled,
+        dev_otp_fallback_disabled: !otpStatus.dev_fallback_enabled,
       },
       booking_whatsapp: bookingStatus,
+      order_whatsapp: orderStatus,
     },
   });
 });
@@ -101,6 +147,12 @@ dispatchRoutes(app);
 adminRoutes(app);
 importRoutes(app);
 fulfillmentRoutes(app);
+lowStockRoutes(app);
+serviceabilityRoutes(app);
+atHomeBeautyRoutes(app);
+deliveryPartnerRoutes(app);
+professionalJobRoutes(app);
+orderIntegrationRoutes(app);
 pickerRoutes(app);
 riderRoutes(app);
 

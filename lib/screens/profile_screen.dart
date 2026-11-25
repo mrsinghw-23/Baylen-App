@@ -3,11 +3,12 @@ import 'package:flutter/material.dart';
 import '../auth/auth_service.dart';
 import '../auth/auth_user.dart';
 import '../config/app_config.dart';
+import '../widgets/offline_account_banner.dart';
 import 'addresses_screen.dart';
 import 'admin_screen.dart';
 import 'bookings_screen.dart';
 import 'cart_screen.dart';
-import 'login_screen.dart';
+import '../screens/auth/role_picker_screen.dart';
 import 'notification_preferences_screen.dart';
 import 'notifications_screen.dart';
 import 'orders_screen.dart';
@@ -30,14 +31,15 @@ class ProfileScreen extends StatelessWidget {
           body: ListView(
             padding: const EdgeInsets.all(16),
             children: [
+              const OfflineAccountBanner(),
               _ProfileHeader(user: user),
               const SizedBox(height: 14),
               if (user == null)
                 FilledButton.icon(
                   onPressed: () {
                     Navigator.of(context).push(
-                      MaterialPageRoute<bool>(
-                        builder: (_) => const LoginScreen(),
+                      MaterialPageRoute<void>(
+                        builder: (_) => const RolePickerScreen(),
                       ),
                     );
                   },

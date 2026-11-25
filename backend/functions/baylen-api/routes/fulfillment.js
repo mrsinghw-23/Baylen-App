@@ -2,6 +2,7 @@
 
 const { asId, num, sendOk, optionalText, rowOf, rowsOf, sqlString } = require("../lib/http");
 const { evaluateFulfillment, evaluateProductAvailability } = require("../lib/fulfillment-engine");
+const { parseLocation, requireCoordinates } = require("../lib/geo-coords");
 const { signedInUser, guestSessionId } = require("../lib/session");
 
 function fulfillmentRoutes(app) {
@@ -13,8 +14,11 @@ function fulfillmentRoutes(app) {
   app.post("/v1/fulfillment/check", async (req, res, next) => {
     try {
       const body = req.body || {};
-      const latitude = body.latitude != null ? Number(body.latitude) : null;
-      const longitude = body.longitude != null ? Number(body.longitude) : null;
+      let latitude = null;
+      let longitude = null;
+      if (body.latitude != null || body.longitude != null) {
+        ({ latitude, longitude } = requireCoordinates(body.latitude, body.longitude));
+      }
       let items = Array.isArray(body.items) ? body.items : [];
 
       if (body.use_cart === true || body.use_cart === "true") {
@@ -81,14 +85,13 @@ function fulfillmentRoutes(app) {
       const productId = asId(req.query.product_id || req.query.id, "product_id");
       const variantId = req.query.variant_id ? asId(req.query.variant_id, "variant_id") : null;
       const quantity = Math.max(1, Math.round(num(req.query.quantity) || 1));
-      const latitude = req.query.latitude != null ? Number(req.query.latitude) : null;
-      const longitude = req.query.longitude != null ? Number(req.query.longitude) : null;
+      const location = parseLocation(req.query.latitude, req.query.longitude);
       const availability = await evaluateProductAvailability(req.catalystApp, {
         productId,
         variantId,
         quantity,
-        latitude,
-        longitude,
+        latitude: location ? location.latitude : null,
+        longitude: location ? location.longitude : null,
       });
       sendOk(res, { availability });
     } catch (error) {

@@ -143,8 +143,10 @@ class _ReviewsPanelState extends State<ReviewsPanel> {
               Expanded(
                 child: Text(
                   widget.title,
-                  style: Theme.of(context).textTheme.titleMedium
-                      ?.copyWith(fontWeight: FontWeight.w900),
+                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.w900,
+                    color: Theme.of(context).colorScheme.onSurface,
+                  ),
                 ),
               ),
               if (_reviews.isNotEmpty)
@@ -161,9 +163,14 @@ class _ReviewsPanelState extends State<ReviewsPanel> {
             controller: _review,
             minLines: 2,
             maxLines: 4,
-            decoration: const InputDecoration(
+            decoration: InputDecoration(
               hintText: 'Write your review',
-              prefixIcon: Icon(Icons.rate_review_outlined),
+              hintStyle: TextStyle(
+                color: Theme.of(context).colorScheme.onSurface.withValues(
+                  alpha: 0.62,
+                ),
+              ),
+              prefixIcon: const Icon(Icons.rate_review_outlined),
             ),
           ),
           const SizedBox(height: 10),
@@ -183,7 +190,13 @@ class _ReviewsPanelState extends State<ReviewsPanel> {
           if (_loading)
             const Center(child: CircularProgressIndicator())
           else if (_reviews.isEmpty)
-            const Text('No reviews yet.')
+            Text(
+              'No reviews yet.',
+              style: TextStyle(
+                color: Theme.of(context).colorScheme.onSurface,
+                fontWeight: FontWeight.w600,
+              ),
+            )
           else
             ..._reviews
                 .take(5)
@@ -239,7 +252,9 @@ class _ReviewTile extends StatelessWidget {
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: const Color(0xFF2B2B34)),
+        border: Border.all(
+          color: Theme.of(context).dividerColor,
+        ),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,

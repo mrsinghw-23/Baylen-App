@@ -6,6 +6,7 @@ class OrderItem {
     required this.quantity,
     required this.unitPrice,
     required this.lineTotal,
+    this.fulfillmentType = '',
   });
 
   final String id;
@@ -14,6 +15,7 @@ class OrderItem {
   final int quantity;
   final double unitPrice;
   final double lineTotal;
+  final String fulfillmentType;
 
   factory OrderItem.fromJson(Map<String, dynamic> json) {
     return OrderItem(
@@ -23,6 +25,7 @@ class OrderItem {
       quantity: (json['quantity'] as num?)?.toInt() ?? 0,
       unitPrice: (json['unit_price'] as num?)?.toDouble() ?? 0,
       lineTotal: (json['line_total'] as num?)?.toDouble() ?? 0,
+      fulfillmentType: json['fulfillment_type']?.toString() ?? '',
     );
   }
 }
@@ -42,6 +45,11 @@ class ShopOrder {
     required this.canCancel,
     required this.canReturn,
     required this.items,
+    this.fulfillmentMode = '',
+    this.parentOrderId = '',
+    this.trackingOrderId = '',
+    this.children = const [],
+    this.etaLabel = '',
   });
 
   final String id;
@@ -57,14 +65,52 @@ class ShopOrder {
   final bool canCancel;
   final bool canReturn;
   final List<OrderItem> items;
+  final String fulfillmentMode;
+  final String parentOrderId;
+  final String trackingOrderId;
+  final List<ShopOrder> children;
+  final String etaLabel;
 
   String get totalLabel {
     final price = grandTotal.toStringAsFixed(0);
     return currency == 'INR' ? '₹$price' : '$currency $price';
   }
 
+  String get trackId =>
+      trackingOrderId.isNotEmpty ? trackingOrderId : id;
+
+  bool get needsOnlinePayment =>
+      status.toUpperCase() == 'PENDING_PAYMENT' &&
+      paymentStatus.toUpperCase() != 'PAID';
+
+  bool get isSplit => fulfillmentMode.toUpperCase() == 'SPLIT';
+
+  String get fulfillmentLabel {
+    switch (fulfillmentMode.toUpperCase()) {
+      case 'QUICK_COMMERCE':
+        return 'Quick Delivery';
+      case 'E_COMMERCE':
+        return 'Standard Delivery';
+      case 'SPLIT':
+        return 'Split Delivery';
+      default:
+        return fulfillmentMode.isEmpty ? 'Delivery' : fulfillmentMode;
+    }
+  }
+
+  /// Active (or recently placed) orders can open live QC delivery tracking.
+  bool get canTrackDelivery {
+    final s = status.toUpperCase();
+    if (s.isEmpty) return true;
+    return !const {
+      'CANCELLED',
+      'REFUNDED',
+    }.contains(s);
+  }
+
   factory ShopOrder.fromJson(Map<String, dynamic> json) {
     final rawItems = json['items'];
+    final rawChildren = json['children'];
     return ShopOrder(
       id: json['id']?.toString() ?? '',
       orderNumber: json['order_number']?.toString() ?? '',
@@ -78,10 +124,20 @@ class ShopOrder {
       shippingCity: json['shipping_city']?.toString() ?? '',
       canCancel: json['can_cancel'] == true,
       canReturn: json['can_return'] == true,
+      fulfillmentMode: json['fulfillment_mode']?.toString() ?? '',
+      parentOrderId: json['parent_order_id']?.toString() ?? '',
+      trackingOrderId: json['tracking_order_id']?.toString() ?? '',
+      etaLabel: json['eta_label']?.toString() ?? '',
       items: rawItems is List
           ? rawItems
-                .whereType<Map<String, dynamic>>()
-                .map(OrderItem.fromJson)
+                .whereType<Map>()
+                .map((e) => OrderItem.fromJson(Map<String, dynamic>.from(e)))
+                .toList()
+          : const [],
+      children: rawChildren is List
+          ? rawChildren
+                .whereType<Map>()
+                .map((e) => ShopOrder.fromJson(Map<String, dynamic>.from(e)))
                 .toList()
           : const [],
     );

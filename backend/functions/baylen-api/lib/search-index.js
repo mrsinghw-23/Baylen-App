@@ -1,6 +1,7 @@
 "use strict";
 
 const { asId, rowOf, rowsOf, num, isTruthy, sqlString, insertedRowId } = require("./http");
+const { aggregateAvailable, queryInventoryForProduct } = require("./inventory-ops");
 const { normalizeQuery, tokenize, expandWithSynonyms, detectIntent, suggestionsFor } = require("./search-engine");
 const { fetchAllTableRows, activeRows } = require("./paged");
 
@@ -143,18 +144,8 @@ async function buildSearchDocument(app, productId) {
 
   let inStock = false;
   try {
-    const inventory = rowsOf(
-      await zcql.executeZCQLQuery(
-        "SELECT quantity_on_hand, quantity_reserved, quantity_committed FROM Inventory WHERE product_id = " +
-          asId(productId, "product_id") +
-          " AND is_active = true AND status = 'ACTIVE'"
-      ),
-      "Inventory"
-    );
-    inStock = inventory.some(
-      (row) =>
-        num(row.quantity_on_hand) - num(row.quantity_reserved) - num(row.quantity_committed) > 0
-    );
+    const inventory = await queryInventoryForProduct(zcql, asId(productId, "product_id"), null);
+    inStock = aggregateAvailable(inventory) > 0;
   } catch (_) {
     inStock = false;
   }
@@ -245,6 +236,92 @@ function scoreDocument(doc, needles, intent) {
   return score;
 }
 
+const SEARCH_DOC_COLUMNS =
+  "ROWID, product_id, product_name, slug, product_code, sku_list, brand_name, brand_id, category_names, product_type, keywords, document_text, status, selling_price, mrp, is_featured, in_stock";
+
+const SEARCH_CANDIDATE_LIMIT = 400;
+
+function escapeLike(value) {
+  return String(value || "")
+    .replace(/'/g, "''")
+    .replace(/[%_]/g, "");
+}
+
+async function fetchSearchDocumentCandidates(zcql, needles) {
+  const terms = (needles || []).filter(Boolean).slice(0, 4);
+  if (!terms.length) {
+    return [];
+  }
+  const likeClauses = terms
+    .map((term) => {
+      const safe = escapeLike(term);
+      if (!safe) {
+        return null;
+      }
+      return (
+        "(document_text LIKE '%" +
+        safe +
+        "%' OR product_name LIKE '%" +
+        safe +
+        "%' OR sku_list LIKE '%" +
+        safe +
+        "%' OR brand_name LIKE '%" +
+        safe +
+        "%')"
+      );
+    })
+    .filter(Boolean);
+  if (!likeClauses.length) {
+    return [];
+  }
+  const query =
+    "SELECT " +
+    SEARCH_DOC_COLUMNS +
+    " FROM Search_Documents WHERE is_active = true AND status = 'ACTIVE' AND (" +
+    likeClauses.join(" OR ") +
+    ") LIMIT " +
+    SEARCH_CANDIDATE_LIMIT;
+  try {
+    return rowsOf(await zcql.executeZCQLQuery(query), "Search_Documents");
+  } catch (_) {
+    return [];
+  }
+}
+
+async function fetchProductSearchFallback(zcql, searchTerm) {
+  const { fetchProductListPage } = require("./catalog-pagination");
+  const safeTerm = String(searchTerm || "").trim();
+  if (!safeTerm) {
+    return [];
+  }
+  const page = await fetchProductListPage(
+    zcql,
+    { search: safeTerm },
+    { limit: 100, cursor: null, sort: "featured" }
+  );
+  return page.rows.map((product) => ({
+    product_id: product.ROWID,
+    product_name: product.name,
+    slug: product.slug,
+    product_code: product.product_code,
+    sku_list: product.sku,
+    brand_name: "",
+    brand_id: product.brand_id,
+    category_names: "",
+    product_type: product.product_type,
+    keywords: product.search_keywords || "",
+    document_text: [product.name, product.short_description, product.description, product.sku]
+      .filter(Boolean)
+      .join(" ")
+      .toLowerCase(),
+    status: product.status,
+    selling_price: product.selling_price,
+    mrp: product.mrp,
+    is_featured: product.is_featured,
+    in_stock: true,
+  }));
+}
+
 async function searchIndexed(app, query, { page = 1, limit = 24, filters = {} } = {}) {
   const zcql = app.zcql();
   const [categoryRows, brandRows, synonymRows] = await Promise.all([
@@ -258,47 +335,10 @@ async function searchIndexed(app, query, { page = 1, limit = 24, filters = {} } 
   const needles = expandWithSynonyms(query, synonyms);
   const intent = detectIntent(needles, categories, brands);
 
-  let docs = [];
-  try {
-    docs = rowsOf(
-      await zcql.executeZCQLQuery(
-        "SELECT ROWID, product_id, product_name, slug, product_code, sku_list, brand_name, brand_id, category_names, product_type, keywords, document_text, status, selling_price, mrp, is_featured, in_stock FROM Search_Documents WHERE is_active = true AND status = 'ACTIVE'"
-      ),
-      "Search_Documents"
-    );
-  } catch (_) {
-    docs = [];
-  }
+  let docs = await fetchSearchDocumentCandidates(zcql, needles);
 
   if (!docs.length) {
-    // fallback to products table if index empty
-    const products = rowsOf(
-      await zcql.executeZCQLQuery(
-        "SELECT ROWID, name, slug, sku, product_code, brand_id, category_id, product_type, short_description, description, search_keywords, mrp, selling_price, is_featured, status FROM Products WHERE status = 'ACTIVE'"
-      ),
-      "Products"
-    );
-    docs = products.map((product) => ({
-      product_id: product.ROWID,
-      product_name: product.name,
-      slug: product.slug,
-      product_code: product.product_code,
-      sku_list: product.sku,
-      brand_name: "",
-      brand_id: product.brand_id,
-      category_names: "",
-      product_type: product.product_type,
-      keywords: product.search_keywords || "",
-      document_text: [product.name, product.short_description, product.description, product.sku]
-        .filter(Boolean)
-        .join(" ")
-        .toLowerCase(),
-      status: product.status,
-      selling_price: product.selling_price,
-      mrp: product.mrp,
-      is_featured: product.is_featured,
-      in_stock: true,
-    }));
+    docs = await fetchProductSearchFallback(zcql, normalizeQuery(query));
   }
 
   let ranked = docs

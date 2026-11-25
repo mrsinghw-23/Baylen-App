@@ -47,7 +47,7 @@ Submit for Meta approval in Tata Tele Business / WhatsApp manager.
 
 ## 2. Set Catalyst env var
 
-After approval, add to **baylen-api** function environment (Development, then Production):
+The Development function is already configured with:
 
 ```
 TATA_BOOKING_TEMPLATE_NAME=baylen_booking_confirmed
@@ -79,12 +79,12 @@ Look for:
 "booking_whatsapp": {
   "ready": true,
   "missing": [],
-  "template": "baylen_booking_confirmed",
-  "mode": "template"
+  "template": "baylen_booking_confirmation_v2",
+  "mode": "booking_template"
 }
 ```
 
-If `TATA_BOOKING_TEMPLATE_NAME` is missing, `mode` is `plain_text_fallback` (often blocked outside 24h window).
+The template must be Meta-approved. OTP login does not open the WhatsApp 24-hour customer-service window, so plain text is only best-effort and is reported as `PENDING`, never `SENT`.
 
 ## 4. Send test message
 

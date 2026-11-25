@@ -12,6 +12,7 @@ import 'addresses_screen.dart';
 import 'cart_screen.dart';
 import 'login_screen.dart';
 import 'notifications_screen.dart';
+import 'shop_brand_page.dart';
 import 'shop_catalog_screen.dart';
 import 'shop_fashion_screen.dart';
 import 'wishlist_screen.dart';
@@ -32,12 +33,16 @@ class _BrandEntry {
   const _BrandEntry({
     required this.name,
     this.id = '',
+    this.slug = '',
     this.logoUrl = '',
+    this.rating = 0,
   });
 
   final String name;
   final String id;
+  final String slug;
   final String logoUrl;
+  final double rating;
 }
 
 class _ShopBrandsScreenState extends State<ShopBrandsScreen> {
@@ -48,6 +53,8 @@ class _ShopBrandsScreenState extends State<ShopBrandsScreen> {
   late ShopBrandTab _tab;
   List<CatalogBrand> _liveBrands = const [];
   String _query = '';
+  bool _brandsLoading = true;
+  String? _brandsError;
 
   @override
   void initState() {
@@ -64,92 +71,67 @@ class _ShopBrandsScreenState extends State<ShopBrandsScreen> {
   }
 
   Future<void> _loadLiveBrands() async {
+    setState(() {
+      _brandsLoading = true;
+      _brandsError = null;
+    });
     try {
       final brands = await _api.brands();
       if (!mounted) return;
-      setState(() => _liveBrands = brands);
+      setState(() {
+        _liveBrands = brands;
+        _brandsLoading = false;
+      });
     } catch (_) {
       if (!mounted) return;
+      setState(() {
+        _brandsLoading = false;
+        _brandsError = 'Brands are temporarily unavailable.';
+      });
     }
-  }
-
-  Map<String, CatalogBrand> get _liveByKey {
-    final map = <String, CatalogBrand>{};
-    for (final brand in _liveBrands) {
-      map[ShopBrandCatalog.normalize(brand.name)] = brand;
-    }
-    return map;
-  }
-
-  CatalogBrand? _matchLive(String name) {
-    final live = _liveByKey;
-    final key = ShopBrandCatalog.normalize(name);
-    final direct = live[key];
-    if (direct != null) {
-      return direct;
-    }
-    if (key.startsWith('baylen')) {
-      return live['baylen'];
-    }
-    return null;
   }
 
   List<_BrandEntry> get _allBrands {
-    final entries = <String, _BrandEntry>{};
-    for (final name in ShopBrandCatalog.allNames()) {
-      final display = ShopBrandCatalog.displayName(name);
-      final live = _matchLive(display);
-      entries[ShopBrandCatalog.normalize(display)] = _BrandEntry(
-        name: display,
-        id: live?.id ?? '',
-        logoUrl: live?.logoUrl ?? '',
-      );
-    }
-    for (final brand in _liveBrands) {
-      final key = ShopBrandCatalog.normalize(brand.name);
-      if (entries.containsKey(key)) {
-        continue;
-      }
-      entries[key] = _BrandEntry(
-        name: ShopBrandCatalog.displayName(brand.name),
-        id: brand.id,
-        logoUrl: brand.logoUrl,
-      );
-    }
-    final list = entries.values.toList()
+    final list = _liveBrands
+        .map(
+          (brand) => _BrandEntry(
+            name: ShopBrandCatalog.displayName(brand.name),
+            id: brand.id,
+            slug: brand.slug,
+            logoUrl: brand.logoUrl,
+            rating: brand.rating,
+          ),
+        )
+        .toList()
       ..sort((a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));
     return _filter(list);
   }
 
   List<_BrandEntry> get _gridBrands {
-    final names = ShopBrandCatalog.namesFor(_tab);
-    final list = names
-        .map((name) {
-          final display = ShopBrandCatalog.displayName(name);
-          final live = _matchLive(display);
-          return _BrandEntry(
-            name: display,
-            id: live?.id ?? '',
-            logoUrl: live?.logoUrl ?? '',
-          );
-        })
-        .toList();
-    if (_tab == ShopBrandTab.popular) {
-      final seen = list.map((item) => ShopBrandCatalog.normalize(item.name)).toSet();
-      for (final brand in _liveBrands) {
-        final key = ShopBrandCatalog.normalize(brand.name);
-        if (seen.add(key) && !key.startsWith('baylen')) {
-          list.add(
-            _BrandEntry(
-              name: ShopBrandCatalog.displayName(brand.name),
-              id: brand.id,
-              logoUrl: brand.logoUrl,
-            ),
-          );
-        }
-      }
+    final all = _allBrands;
+    switch (_tab) {
+      case ShopBrandTab.popular:
+        final list = [...all]..sort((a, b) {
+          final rating = b.rating.compareTo(a.rating);
+          if (rating != 0) {
+            return rating;
+          }
+          return a.name.toLowerCase().compareTo(b.name.toLowerCase());
+        });
+        return list;
+      case ShopBrandTab.luxe:
+        return all.where((brand) => brand.rating >= 4).toList();
+      case ShopBrandTab.onlyAtBaylen:
+        return all
+            .where(
+              (brand) =>
+                  ShopBrandCatalog.normalize(brand.name).contains('baylen'),
+            )
+            .toList();
+      case ShopBrandTab.newLaunches:
+        final list = [...all]..sort((a, b) => b.id.compareTo(a.id));
+        return list;
     }
-    return _filter(list);
   }
 
   List<_BrandEntry> _filter(List<_BrandEntry> brands) {
@@ -178,12 +160,24 @@ class _ShopBrandsScreenState extends State<ShopBrandsScreen> {
   }
 
   void _openBrand(_BrandEntry brand) {
+    if (brand.id.isEmpty && brand.slug.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('This brand is not available yet.')),
+      );
+      return;
+    }
+    final slug = brand.slug.isNotEmpty ? brand.slug : brand.id;
+    CatalogBrand? live;
+    for (final item in _liveBrands) {
+      if (item.id == brand.id || item.slug == slug) {
+        live = item;
+        break;
+      }
+    }
     Navigator.of(context).push(
       MaterialPageRoute<void>(
-        builder: (_) => ShopCatalogScreen(
-          brandId: brand.id.isEmpty ? null : brand.id,
-          initialQuery: brand.id.isEmpty ? brand.name : '',
-        ),
+        settings: RouteSettings(name: '/brand/$slug'),
+        builder: (_) => ShopBrandPage(slug: slug, brand: live),
       ),
     );
   }
@@ -268,7 +262,8 @@ class _ShopBrandsScreenState extends State<ShopBrandsScreen> {
       for (final brand in allBrands) ShopBrandCatalog.letterOf(brand.name),
     };
 
-    return Scaffold(
+    return ShopThemeScope(
+      child: Scaffold(
       backgroundColor: kShopSurface,
       body: Column(
         children: [
@@ -469,7 +464,29 @@ class _ShopBrandsScreenState extends State<ShopBrandsScreen> {
                           ),
                         ),
                         Expanded(
-                          child: gridBrands.isEmpty
+                          child: _brandsLoading
+                              ? const Center(child: CircularProgressIndicator())
+                              : _brandsError != null
+                              ? Center(
+                                  child: Padding(
+                                    padding: const EdgeInsets.all(16),
+                                    child: Column(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        Text(
+                                          _brandsError!,
+                                          textAlign: TextAlign.center,
+                                          style: const TextStyle(color: kShopMuted),
+                                        ),
+                                        TextButton(
+                                          onPressed: _loadLiveBrands,
+                                          child: const Text('Retry'),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                )
+                              : gridBrands.isEmpty
                               ? const Center(
                                   child: Text(
                                     'No brands match this search.',
@@ -509,6 +526,7 @@ class _ShopBrandsScreenState extends State<ShopBrandsScreen> {
           ),
         ],
       ),
+    ),
     );
   }
 }
